@@ -222,50 +222,59 @@ def generate_word(project_id):
     try:
         project = Project.query.get_or_404(project_id)
         
-        # Create a new Word document for reference
-        doc = Document()
-        
-        # Add the name paragraph
-        para = doc.add_paragraph()
-        name_label = para.add_run("Name: ")
-        name_label.font.name = "Tahoma"
-        name_label.font.size = Pt(10)
-        
-        # Create XML elements for bookmark
-        def add_bookmark(paragraph, bookmark_text, bookmark_name):
-            run = paragraph.add_run()
-            tag = OxmlElement('w:bookmarkStart')
-            tag.set(qn('w:id'), '0')
-            tag.set(qn('w:name'), bookmark_name)
-            run._r.append(tag)
-            
-            run = paragraph.add_run(bookmark_text)
-            run.font.name = "Tahoma"
-            run.font.size = Pt(10)
-            
-            tag = OxmlElement('w:bookmarkEnd')
-            tag.set(qn('w:id'), '0')
-            run._r.append(tag)
-            return run
-        
-        # Add the project name with bookmark
-        add_bookmark(para, project.name, "NameField")
-        
-        # Create the documents directory if it doesn't exist
+        # Create output directory if it doesn't exist
         os.makedirs('static/generated_docs', exist_ok=True)
         
-        # Save the reference document
-        ref_path = os.path.join('static/generated_docs', 'reference.docx')
-        doc.save(ref_path)
+        # Load the template
+        template_path = os.path.join('static/generated_docs', 'template.docx')
+        doc = Document(template_path)
         
-        # Send the template.doc file to the user
-        template_path = 'static/generated_docs/template.doc'
-        return send_file(
-            template_path,
-            mimetype='application/msword',
+        # Replace placeholders in paragraphs
+        for paragraph in doc.paragraphs:
+            if '{{Name}}' in paragraph.text:
+                # Store the original formatting
+                runs = paragraph.runs
+                for run in runs:
+                    if '{{Name}}' in run.text:
+                        # Replace while preserving the run's formatting
+                        run.text = run.text.replace('{{Name}}', project.name)
+        
+        # Also check tables if any
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if '{{Name}}' in paragraph.text:
+                            for run in paragraph.runs:
+                                if '{{Name}}' in run.text:
+                                    run.text = run.text.replace('{{Name}}', project.name)
+        
+        # Create output filename with timestamp
+        output_filename = f'output_{project.name}_{int(time.time())}.docx'
+        output_path = os.path.join('static/generated_docs', output_filename)
+        
+        # Save the modified document
+        doc.save(output_path)
+        
+        # Send the generated file
+        response = send_file(
+            output_path,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             as_attachment=True,
-            download_name=f'{project.name}.doc'
+            download_name=f'{project.name}.docx'
         )
+        
+        # Clean up the generated file after sending
+        @response.call_on_close
+        def cleanup():
+            try:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                print(f"Successfully cleaned up {output_path}")
+            except Exception as e:
+                print(f"Error cleaning up {output_path}: {str(e)}")
+        
+        return response
         
     except Exception as e:
         print(f"Error generating Word document: {str(e)}")
