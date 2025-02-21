@@ -192,7 +192,37 @@
     });
 
     generateWordBtn.addEventListener('click', async () => {
-        window.location.href = `/generate_word/{{ project.id }}`;
+        try {
+            const response = await fetch(`/generate_word/{{ project.id }}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                // Get the filename from the Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : '{{ project.name }}.docx';
+                
+                // Convert the response to a blob
+                const blob = await response.blob();
+                
+                // Create a link to download the file
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                
+                alert('Document generated successfully. The download should start automatically.');
+            } else {
+                const data = await response.json();
+                alert('Failed to generate document: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error generating document: ' + error.message);
+        }
     });
 
     function updateTable(items) {

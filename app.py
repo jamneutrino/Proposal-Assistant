@@ -14,6 +14,10 @@ from docx.oxml.ns import qn
 from dotenv import load_dotenv
 import os
 from werkzeug.utils import secure_filename
+import win32com.client
+import pythoncom
+import tempfile
+import shutil
 
 # Load environment variables from .env file
 load_dotenv()
@@ -219,10 +223,12 @@ def delete_project(project_id):
 
 @app.route('/generate_word/<int:project_id>', methods=['POST'])
 def generate_word(project_id):
+    word_app = None
+    temp_dir = None
     try:
         project = Project.query.get_or_404(project_id)
         
-        # Create a new Word document
+        # Create a new Word document for reference
         doc = Document()
         
         # Add the name paragraph
@@ -251,20 +257,72 @@ def generate_word(project_id):
         # Add the project name with bookmark
         add_bookmark(para, project.name, "NameField")
         
-        # Save the document to a BytesIO object
-        doc_buffer = io.BytesIO()
-        doc.save(doc_buffer)
-        doc_buffer.seek(0)
+        # Create the documents directory if it doesn't exist
+        os.makedirs('static/generated_docs', exist_ok=True)
         
+        # Save the reference document
+        ref_path = os.path.join('static/generated_docs', 'reference.docx')
+        doc.save(ref_path)
+        
+        # Verify template.doc exists
+        template_path = 'static/generated_docs/template.doc'
+        if not os.path.exists(template_path):
+            raise FileNotFoundError(f"Template file not found at {template_path}")
+        
+        # Create a temporary copy of template.doc
+        temp_dir = tempfile.mkdtemp()
+        temp_doc = os.path.join(temp_dir, f'{project.name}.doc')
+        shutil.copy2(template_path, temp_doc)
+        
+        # Initialize COM in this thread
+        pythoncom.CoInitialize()
+        
+        # Open Word and update fields
+        word_app = win32com.client.DispatchEx('Word.Application')
+        word_app.Visible = False
+        
+        print(f"Opening document: {os.path.abspath(temp_doc)}")
+        doc = word_app.Documents.Open(os.path.abspath(temp_doc))
+        
+        print("Updating fields...")
+        doc.Fields.Update()
+        
+        print("Saving document...")
+        doc.Save()
+        doc.Close()
+        
+        print("Closing Word...")
+        word_app.Quit()
+        word_app = None
+        
+        print("Cleaning up COM...")
+        pythoncom.CoUninitialize()
+        
+        print("Sending file...")
         return send_file(
-            doc_buffer,
-            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            temp_doc,
+            mimetype='application/msword',
             as_attachment=True,
-            download_name=f'{project.name}_proposal.docx'
+            download_name=f'{project.name}.doc'
         )
+        
     except Exception as e:
         print(f"Error generating Word document: {str(e)}")
+        # Try to clean up Word if it's still running
+        if word_app:
+            try:
+                word_app.Quit()
+            except:
+                pass
         return jsonify({'error': str(e)}), 500
+        
+    finally:
+        # Clean up temporary directory
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                print(f"Error cleaning up temp directory: {str(e)}")
 
 @app.route('/admin')
 def admin():
