@@ -302,7 +302,7 @@
             
             questionContainer.innerHTML = `
                 <div class="text-center">
-                    <p class="text-3xl mb-4">${currentItem.name}</p>
+                    <p class="text-3xl font-bold mb-4">${currentItem.name}</p>
                     <p class="text-xl mb-4 text-gray-600">Price: $${itemPrice.toFixed(2)}</p>
                     ${currentItem.image_path ? `
                         <div class="mb-8">
@@ -311,15 +311,27 @@
                     ` : '<div class="mb-8"></div>'}
                     <div class="flex justify-center gap-16">
                         <button type="button" onclick="answerQuestion(0)" 
-                            class="px-12 py-4 text-xl bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                            class="px-12 py-4 text-xl font-semibold bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
                             No
                         </button>
                         <div class="flex items-center gap-4">
-                            <input type="number" min="1" value="1" 
-                                class="w-24 h-14 text-xl rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
-                                id="quantityInput">
+                            <div class="flex items-center">
+                                <button type="button" onclick="decrementQuantity()"
+                                    class="px-4 py-4 text-xl font-semibold bg-blue-100 text-blue-600 rounded-l-lg hover:bg-blue-200 transition-colors border-2 border-r-0 border-blue-300">
+                                    −
+                                </button>
+                                <input type="number" min="1" value="1" 
+                                    class="w-20 h-16 text-2xl font-bold text-center border-2 border-blue-300 focus:border-blue-500 focus:ring-blue-500"
+                                    style="-moz-appearance: textfield; appearance: textfield;"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                    id="quantityInput">
+                                <button type="button" onclick="incrementQuantity()"
+                                    class="px-4 py-4 text-xl font-semibold bg-blue-100 text-blue-600 rounded-r-lg hover:bg-blue-200 transition-colors border-2 border-l-0 border-blue-300">
+                                    +
+                                </button>
+                            </div>
                             <button type="button" onclick="answerQuestion()" 
-                                class="px-12 py-4 text-xl bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                class="px-12 py-4 text-xl font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                                 Yes
                             </button>
                         </div>
@@ -358,6 +370,21 @@
             }
         }
     }
+
+    // Add these functions for quantity control
+    window.incrementQuantity = function() {
+        const input = document.getElementById('quantityInput');
+        const currentValue = parseInt(input.value) || 0;
+        input.value = currentValue + 1;
+    };
+
+    window.decrementQuantity = function() {
+        const input = document.getElementById('quantityInput');
+        const currentValue = parseInt(input.value) || 2;
+        if (currentValue > 1) {
+            input.value = currentValue - 1;
+        }
+    };
 
     window.answerQuestion = function(quantity = null) {
         const currentItem = availableItems[currentItemIndex];
