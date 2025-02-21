@@ -25,7 +25,7 @@
                 <select class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="itemSelect" required>
                     <option value="">Choose...</option>
                     {% for item in items %}
-                    <option value="{{ item }}">{{ item }}</option>
+                    <option value="{{ item.name }}">{{ item.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -257,12 +257,12 @@
         hideModal();
         
         // Add each item with quantity > 0
-        for (const [item, quantity] of Object.entries(itemAnswers)) {
+        for (const [itemName, quantity] of Object.entries(itemAnswers)) {
             if (quantity > 0) {
                 // Get price from cache or server
-                let price = priceCache[item] || 0;
+                let price = priceCache[itemName] || 0;
                 if (!price) {
-                    const response = await fetch(`/get_price/${encodeURIComponent(item)}`);
+                    const response = await fetch(`/get_price/${encodeURIComponent(itemName)}`);
                     const data = await response.json();
                     price = data.price || 0;
                 }
@@ -273,7 +273,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ item, quantity, price })
+                    body: JSON.stringify({ item: itemName, quantity, price })
                 });
 
                 const data = await response.json();
@@ -296,12 +296,14 @@
         
         if (currentItemIndex < availableItems.length) {
             const currentItem = availableItems[currentItemIndex];
+            const itemPrice = priceCache[currentItem.name] || 0;
             answersReview.classList.add('hidden');
             questionContainer.classList.remove('hidden');
             
             questionContainer.innerHTML = `
                 <div class="text-center">
                     <p class="text-3xl mb-4">${currentItem.name}</p>
+                    <p class="text-xl mb-4 text-gray-600">Price: $${itemPrice.toFixed(2)}</p>
                     ${currentItem.image_path ? `
                         <div class="mb-8">
                             <img src="${currentItem.image_path}" alt="${currentItem.name}" class="mx-auto max-h-64 w-auto">
@@ -335,6 +337,8 @@
             for (const [item, quantity] of Object.entries(itemAnswers)) {
                 if (quantity > 0) {
                     const itemObj = availableItems.find(i => i.name === item);
+                    const itemPrice = priceCache[item] || 0;
+                    const total = quantity * itemPrice;
                     answersList.innerHTML += `
                         <div class="flex justify-between items-center py-3 border-b border-gray-200">
                             <div class="flex items-center gap-4">
@@ -343,7 +347,11 @@
                                 ` : ''}
                                 <span class="text-xl">${item}</span>
                             </div>
-                            <span class="text-xl">Quantity: ${quantity}</span>
+                            <div class="text-right">
+                                <div class="text-xl">Quantity: ${quantity}</div>
+                                <div class="text-lg text-gray-600">Price: $${itemPrice.toFixed(2)}</div>
+                                <div class="text-lg font-semibold">Total: $${total.toFixed(2)}</div>
+                            </div>
                         </div>
                     `;
                 }

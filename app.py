@@ -148,7 +148,7 @@ def project(project_id):
     project = Project.query.get_or_404(project_id)
     translation = translate_to_words(project.items)
     
-    # Convert items to dict with image paths
+    # Pass the items list with their names and image paths
     items_with_images = [{'name': item.name, 'image_path': item.image_path} for item in ITEMS]
     
     return render_template('project.html', 
