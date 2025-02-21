@@ -13,6 +13,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from dotenv import load_dotenv
 import os
+from werkzeug.utils import secure_filename
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,10 +27,51 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///items.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default-dev-key-please-change')
+app.config['UPLOAD_FOLDER'] = 'static/item_images'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Ensure upload folder exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 db = SQLAlchemy(app)
 
-# List of available items
-ITEMS = ['Item 1', 'Item 2', 'Item 3', 'Item 4', 'Item 5', 'Curbs', 'Pipes']
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# List of available items with their images
+class ItemDefinition:
+    def __init__(self, name, image_path=None):
+        self.name = name
+        self.image_path = image_path
+
+ITEMS = []
+
+def save_items_to_file():
+    """Save the ITEMS list to a file"""
+    with open('items.txt', 'w') as f:
+        for item in ITEMS:
+            f.write(f"{item.name}|{item.image_path or ''}\n")
+
+def load_items_from_file():
+    """Load items from file if it exists"""
+    global ITEMS
+    try:
+        with open('items.txt', 'r') as f:
+            ITEMS = []
+            for line in f:
+                if line.strip():
+                    parts = line.strip().split('|')
+                    name = parts[0]
+                    image_path = parts[1] if len(parts) > 1 and parts[1] else None
+                    ITEMS.append(ItemDefinition(name, image_path))
+    except FileNotFoundError:
+        # If file doesn't exist, save current items
+        ITEMS = [ItemDefinition(name) for name in ['Curbs', 'Pipes']]
+        save_items_to_file()
+
+# Load items when app starts
+load_items_from_file()
 
 # Cache for prices
 price_cache = {}
@@ -105,9 +147,13 @@ def project(project_id):
     update_price_cache()  # Update prices when viewing a project
     project = Project.query.get_or_404(project_id)
     translation = translate_to_words(project.items)
+    
+    # Convert items to dict with image paths
+    items_with_images = [{'name': item.name, 'image_path': item.image_path} for item in ITEMS]
+    
     return render_template('project.html', 
                          project=project, 
-                         items=ITEMS, 
+                         items=items_with_images, 
                          translation=translation,
                          price_cache=price_cache)
 
@@ -219,6 +265,108 @@ def generate_word(project_id):
     except Exception as e:
         print(f"Error generating Word document: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/admin')
+def admin():
+    return render_template('admin.html', items=ITEMS)
+
+@app.route('/admin/items/add', methods=['POST'])
+def admin_add_item():
+    global ITEMS
+    name = request.form.get('name')
+    image = request.files.get('image')
+    image_path = None
+    
+    if name and name not in [item.name for item in ITEMS]:
+        if image and allowed_file(image.filename):
+            filename = secure_filename(image.filename)
+            # Add timestamp to filename to prevent duplicates
+            filename = f"{int(time.time())}_{filename}"
+            image_path = os.path.join('/static/item_images', filename)  # Add /static/ prefix
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        
+        ITEMS.append(ItemDefinition(name, image_path))
+        ITEMS.sort(key=lambda x: x.name)  # Keep items sorted by name
+        save_items_to_file()
+        return jsonify({'success': True})
+    
+    return jsonify({'success': False}), 400
+
+@app.route('/admin/items/edit', methods=['POST'])
+def admin_edit_item():
+    global ITEMS
+    old_name = request.form.get('oldName')
+    new_name = request.form.get('newName')
+    image = request.files.get('image')
+    keep_image = request.form.get('keepImage') == 'true'
+    
+    old_item = next((item for item in ITEMS if item.name == old_name), None)
+    if old_item and new_name:
+        # Only check for name conflict if the name is actually changing
+        if new_name != old_name and new_name in [item.name for item in ITEMS if item.name != old_name]:
+            return jsonify({'success': False, 'error': 'Name already exists'}), 400
+
+        # Handle image update
+        image_path = old_item.image_path if keep_image else None
+        if image and allowed_file(image.filename):
+            # Delete old image if exists
+            if old_item.image_path:
+                old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(old_item.image_path))
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+            
+            filename = secure_filename(image.filename)
+            filename = f"{int(time.time())}_{filename}"
+            image_path = os.path.join('/static/item_images', filename)  # Add /static/ prefix
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        elif not keep_image and old_item.image_path:
+            # Delete old image if exists and not keeping it
+            old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(old_item.image_path))
+            if os.path.exists(old_image_path):
+                os.remove(old_image_path)
+        
+        # Update item in ITEMS list
+        old_item.name = new_name
+        old_item.image_path = image_path
+        ITEMS.sort(key=lambda x: x.name)  # Keep items sorted
+        save_items_to_file()
+        
+        # Update any existing items in projects
+        if new_name != old_name:
+            items_to_update = Item.query.filter_by(name=old_name).all()
+            for item in items_to_update:
+                item.name = new_name
+            db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    return jsonify({'success': False}), 400
+
+@app.route('/admin/items/delete', methods=['POST'])
+def admin_delete_item():
+    global ITEMS
+    name = request.json.get('name')
+    
+    item_to_delete = next((item for item in ITEMS if item.name == name), None)
+    if item_to_delete:
+        # Delete image if exists
+        if item_to_delete.image_path:
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(item_to_delete.image_path))
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        
+        ITEMS.remove(item_to_delete)
+        save_items_to_file()
+        
+        # Delete any existing items in projects
+        items_to_delete = Item.query.filter_by(name=name).all()
+        for item in items_to_delete:
+            db.session.delete(item)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    return jsonify({'success': False}), 400
 
 # Create the database tables
 with app.app_context():
