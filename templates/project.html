@@ -4,94 +4,120 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.name }} - Project Manager</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .container { max-width: 800px; }
-        .item-list { margin-top: 2rem; }
-        .total { margin-top: 1rem; font-weight: bold; }
-        .translation-section {
-            margin-top: 2rem;
-            padding: 1rem;
-            background-color: #f8f9fa;
-            border-radius: 0.5rem;
-            border: 1px solid #dee2e6;
-        }
-        .clear-button {
-            margin-top: 1rem;
-        }
+        [x-cloak] { display: none !important; }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>{{ project.name }}</h2>
-            <div>
-                <button id="generateWordBtn" class="btn btn-primary me-2">Generate Word</button>
-                <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Projects</a>
+<body class="bg-gray-50">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-gray-800">{{ project.name }}</h2>
+            <div class="flex gap-3">
+                <button id="generateWordBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Generate Word
+                </button>
+                <a href="{{ url_for('index') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    Back to Projects
+                </a>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-body">
-                <form id="itemForm" class="row g-3">
-                    <div class="col-md-4">
-                        <label for="itemSelect" class="form-label">Select Item</label>
-                        <select class="form-select" id="itemSelect" required>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+            <div class="p-6">
+                <form id="itemForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label for="itemSelect" class="block text-sm font-medium text-gray-700 mb-1">Select Item</label>
+                        <select class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="itemSelect" required>
                             <option value="">Choose...</option>
                             {% for item in items %}
                             <option value="{{ item }}">{{ item }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="quantity" class="form-label">Quantity</label>
-                        <input type="number" class="form-control" id="quantity" min="1" value="1" required>
+                    <div>
+                        <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                        <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="quantity" min="1" value="1" required>
                     </div>
-                    <div class="col-md-4">
-                        <label for="price" class="form-label">Price</label>
-                        <input type="number" class="form-control" id="price" min="0.01" step="0.01" required>
+                    <div>
+                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                        <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="price" min="0.01" step="0.01" required>
                     </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary">Add Item</button>
+                    <div class="flex items-end gap-2">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Add Item</button>
+                        <button type="button" id="questionsBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Questions</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="translation-section">
-            <h3>Translated to Words</h3>
-            <p id="translationText" class="mb-0" style="white-space: pre-line">{{ translation }}</p>
+        <!-- Questions Modal -->
+        <div class="fixed inset-0 bg-black bg-opacity-50 hidden" id="questionsModal" aria-hidden="true">
+            <div class="fixed inset-0 flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-lg max-w-md w-full">
+                    <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                        <h5 class="text-xl font-semibold text-gray-800">Item Questions</h5>
+                        <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div id="questionContainer">
+                            <!-- Questions will be dynamically added here -->
+                        </div>
+                        <div id="answersReview" class="hidden">
+                            <h6 class="text-lg font-medium text-gray-800 mb-4">Your Answers:</h6>
+                            <div id="answersContainer" class="space-y-3"></div>
+                            <div class="flex gap-3 mt-6">
+                                <button type="button" id="editAnswersBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Edit Answers</button>
+                                <button type="button" id="saveAnswersBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="item-list">
-            <div class="d-flex justify-content-between align-items-center">
-                <h3>Added Items</h3>
-                <button id="clearButton" class="btn btn-danger">Clear All Items</button>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Translated to Words</h3>
+            <p id="translationText" class="text-gray-600 whitespace-pre-line">{{ translation }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-800">Added Items</h3>
+                <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Clear All Items
+                </button>
             </div>
-            <div class="table-responsive">
-                <table class="table table-striped">
+            <div class="overflow-x-auto">
+                <table class="w-full">
                     <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Quantity</th>
-                            <th>Price</th>
-                            <th>Total</th>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Item</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Quantity</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Price</th>
+                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Total</th>
                         </tr>
                     </thead>
-                    <tbody id="itemsTable">
+                    <tbody id="itemsTable" class="divide-y divide-gray-200">
                         {% for item in project.items %}
-                        <tr>
-                            <td>{{ item.name }}</td>
-                            <td>{{ item.quantity }}</td>
-                            <td>${{ "%.2f"|format(item.price) }}</td>
-                            <td>${{ "%.2f"|format(item.quantity * item.price) }}</td>
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-3 px-4 text-sm text-gray-800">{{ item.name }}</td>
+                            <td class="py-3 px-4 text-sm text-gray-800">{{ item.quantity }}</td>
+                            <td class="py-3 px-4 text-sm text-gray-800">${{ "%.2f"|format(item.price) }}</td>
+                            <td class="py-3 px-4 text-sm text-gray-800">${{ "%.2f"|format(item.quantity * item.price) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <div class="total" id="totalAmount">
-                Total: ${{ "%.2f"|format(project.items|sum(attribute='price')|float * project.items|sum(attribute='quantity')|float) }}
+            <div class="mt-6 text-right">
+                <span id="totalAmount" class="text-lg font-semibold text-gray-800">
+                    Total: ${{ "%.2f"|format(project.items|sum(attribute='price')|float * project.items|sum(attribute='quantity')|float) }}
+                </span>
             </div>
         </div>
     </div>
@@ -100,6 +126,8 @@
         const itemSelect = document.getElementById('itemSelect');
         const priceInput = document.getElementById('price');
         const generateWordBtn = document.getElementById('generateWordBtn');
+        const questionsBtn = document.getElementById('questionsBtn');
+        const questionsModal = document.getElementById('questionsModal');
         
         // Initialize price cache
         const priceCache = {{ price_cache|tojson|safe }};
@@ -204,11 +232,12 @@
                 const itemTotal = item.quantity * item.price;
                 total += itemTotal;
 
+                row.className = 'hover:bg-gray-50';
                 row.innerHTML = `
-                    <td>${item.name}</td>
-                    <td>${item.quantity}</td>
-                    <td>$${item.price.toFixed(2)}</td>
-                    <td>$${itemTotal.toFixed(2)}</td>
+                    <td class="py-3 px-4 text-sm text-gray-800">${item.name}</td>
+                    <td class="py-3 px-4 text-sm text-gray-800">${item.quantity}</td>
+                    <td class="py-3 px-4 text-sm text-gray-800">$${item.price.toFixed(2)}</td>
+                    <td class="py-3 px-4 text-sm text-gray-800">$${itemTotal.toFixed(2)}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -218,6 +247,147 @@
 
         function updateTranslation(translation) {
             document.getElementById('translationText').textContent = translation;
+        }
+
+        // Modal functionality
+        function showModal() {
+            questionsModal.classList.remove('hidden');
+        }
+
+        function hideModal() {
+            questionsModal.classList.add('hidden');
+        }
+
+        // Close modal when clicking outside or on close button
+        questionsModal.addEventListener('click', (e) => {
+            if (e.target === questionsModal) {
+                hideModal();
+            }
+        });
+
+        document.querySelector('[data-bs-dismiss="modal"]').addEventListener('click', hideModal);
+
+        // Questions functionality
+        let currentItemIndex = 0;
+        let itemAnswers = {};
+        const availableItems = {{ items|tojson|safe }};
+
+        questionsBtn.addEventListener('click', () => {
+            currentItemIndex = 0;
+            itemAnswers = {};
+            showNextQuestion();
+            showModal();
+        });
+
+        function showNextQuestion() {
+            const questionContainer = document.getElementById('questionContainer');
+            const answersReview = document.getElementById('answersReview');
+            
+            if (currentItemIndex < availableItems.length) {
+                const currentItem = availableItems[currentItemIndex];
+                questionContainer.style.display = 'block';
+                answersReview.style.display = 'none';
+                
+                questionContainer.innerHTML = `
+                    <p class="text-lg text-gray-800 mb-4">How many of ${currentItem}?</p>
+                    <div class="mb-6">
+                        <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="itemQuantity" min="0" value="0">
+                    </div>
+                    <div class="flex gap-3">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors" id="skipBtn">Skip</button>
+                        <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" id="nextBtn">Next</button>
+                    </div>
+                `;
+
+                document.getElementById('skipBtn').addEventListener('click', () => {
+                    currentItemIndex++;
+                    showNextQuestion();
+                });
+
+                document.getElementById('nextBtn').addEventListener('click', () => {
+                    const quantity = parseInt(document.getElementById('itemQuantity').value);
+                    if (quantity > 0) {
+                        itemAnswers[currentItem] = quantity;
+                    }
+                    currentItemIndex++;
+                    showNextQuestion();
+                });
+            } else {
+                showAnswersReview();
+            }
+        }
+
+        function showAnswersReview() {
+            const questionContainer = document.getElementById('questionContainer');
+            const answersReview = document.getElementById('answersReview');
+            const answersContainer = document.getElementById('answersContainer');
+            
+            questionContainer.style.display = 'none';
+            answersReview.style.display = 'block';
+            
+            answersContainer.innerHTML = '';
+            for (const [item, quantity] of Object.entries(itemAnswers)) {
+                answersContainer.innerHTML += `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <span class="font-medium text-gray-800">${item}:</span>
+                            <span class="text-gray-600">${quantity}</span>
+                        </div>
+                        <button type="button" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors edit-answer" data-item="${item}">
+                            Edit
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Edit button handlers
+            document.querySelectorAll('.edit-answer').forEach(button => {
+                button.addEventListener('click', () => {
+                    const item = button.dataset.item;
+                    const quantity = itemAnswers[item];
+                    const newQuantity = prompt(`Enter new quantity for ${item}:`, quantity);
+                    if (newQuantity !== null) {
+                        const parsedQuantity = parseInt(newQuantity);
+                        if (!isNaN(parsedQuantity) && parsedQuantity >= 0) {
+                            itemAnswers[item] = parsedQuantity;
+                            showAnswersReview();
+                        }
+                    }
+                });
+            });
+
+            // Save button handler
+            document.getElementById('saveAnswersBtn').addEventListener('click', async () => {
+                for (const [item, quantity] of Object.entries(itemAnswers)) {
+                    if (quantity > 0) {
+                        // Get price from cache or server
+                        let price = priceCache[item] || 0;
+                        if (!price) {
+                            const response = await fetch(`/get_price/${encodeURIComponent(item)}`);
+                            const data = await response.json();
+                            price = data.price || 0;
+                        }
+
+                        // Add item to project
+                        await fetch('/add_item/{{ project.id }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ item, quantity, price })
+                        });
+                    }
+                }
+                
+                // Refresh the page to show updated items
+                location.reload();
+            });
+
+            // Edit answers button handler
+            document.getElementById('editAnswersBtn').addEventListener('click', () => {
+                currentItemIndex = 0;
+                showNextQuestion();
+            });
         }
     </script>
 </body>
