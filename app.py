@@ -682,4 +682,4 @@ with app.app_context():
 if __name__ == '__main__':
     # Initial price cache update
     update_price_cache()
-    app.run(debug=os.getenv('FLASK_ENV') == 'development') 
+    app.run(debug=os.getenv('FLASK_ENV') == 'development', port=8000) 
