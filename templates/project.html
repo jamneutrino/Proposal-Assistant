@@ -5,62 +5,59 @@
 {% block nav_home %}text-gray-900 border-b-2 border-blue-500{% endblock %}
 
 {% block content %}
-<div class="mb-6 flex justify-between items-center">
-    <h1 class="text-3xl font-bold text-gray-800">{{ project.name }}</h1>
-    <div class="flex gap-4">
-        <button id="generateWordBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-            Generate Word
-        </button>
-        <a href="{{ url_for('index') }}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-            Back to Projects
-        </a>
+<div class="mb-6">
+    <div class="flex justify-between items-start">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">{{ project.name }}</h1>
+            {% if project.address %}
+            <p class="mt-1 text-gray-600">{{ project.address }}</p>
+            {% endif %}
+        </div>
+        <div class="flex gap-4">
+            <button id="generateWordBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                Generate Word
+            </button>
+            <a href="{{ url_for('index') }}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                Back to Projects
+            </a>
+        </div>
     </div>
 </div>
 
 <!-- Project Details Section -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-    <div class="border-b border-gray-200 px-6 py-4">
-        <h2 class="text-xl font-semibold text-gray-800">Project Details</h2>
+<div class="bg-gray-50 rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">Project Details</h2>
     </div>
-    <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-                <p class="text-sm font-medium text-gray-500 mb-1">Created</p>
-                <p class="text-gray-900">{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-            </div>
+    <div class="p-3">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             {% if project.date %}
-            <div>
-                <p class="text-sm font-medium text-gray-500 mb-1">Date</p>
+            <div class="bg-white p-2 rounded border border-gray-100">
+                <p class="text-xs font-medium text-gray-500">Date</p>
                 <p class="text-gray-900">{{ project.date }}</p>
             </div>
             {% endif %}
-            {% if project.address %}
-            <div>
-                <p class="text-sm font-medium text-gray-500 mb-1">Address</p>
-                <p class="text-gray-900">{{ project.address }}</p>
-            </div>
-            {% endif %}
             {% if project.attn %}
-            <div>
-                <p class="text-sm font-medium text-gray-500 mb-1">Attention To</p>
+            <div class="bg-white p-2 rounded border border-gray-100">
+                <p class="text-xs font-medium text-gray-500">Attention To</p>
                 <p class="text-gray-900">{{ project.attn }}</p>
             </div>
             {% endif %}
         </div>
 
-        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
             {% if project.contractor_name or project.contractor_email %}
-            <div>
-                <h3 class="text-sm font-medium text-gray-500 mb-4">Contractor Information</h3>
+            <div class="bg-white p-2 rounded border border-gray-100">
+                <h3 class="text-xs font-medium text-gray-500 mb-2">Contractor Information</h3>
                 {% if project.contractor_name %}
-                <div class="mb-3">
-                    <p class="text-xs text-gray-500 mb-1">Name</p>
+                <div class="mb-1">
+                    <p class="text-xs text-gray-500">Name</p>
                     <p class="text-gray-900">{{ project.contractor_name }}</p>
                 </div>
                 {% endif %}
                 {% if project.contractor_email %}
                 <div>
-                    <p class="text-xs text-gray-500 mb-1">Email</p>
+                    <p class="text-xs text-gray-500">Email</p>
                     <p class="text-gray-900">{{ project.contractor_email }}</p>
                 </div>
                 {% endif %}
@@ -68,17 +65,17 @@
             {% endif %}
 
             {% if project.job_contact or project.job_contact_phone %}
-            <div>
-                <h3 class="text-sm font-medium text-gray-500 mb-4">Job Contact Information</h3>
+            <div class="bg-white p-2 rounded border border-gray-100">
+                <h3 class="text-xs font-medium text-gray-500 mb-2">Job Contact Information</h3>
                 {% if project.job_contact %}
-                <div class="mb-3">
-                    <p class="text-xs text-gray-500 mb-1">Name</p>
+                <div class="mb-1">
+                    <p class="text-xs text-gray-500">Name</p>
                     <p class="text-gray-900">{{ project.job_contact }}</p>
                 </div>
                 {% endif %}
                 {% if project.job_contact_phone %}
                 <div>
-                    <p class="text-xs text-gray-500 mb-1">Phone</p>
+                    <p class="text-xs text-gray-500">Phone</p>
                     <p class="text-gray-900">{{ project.job_contact_phone }}</p>
                 </div>
                 {% endif %}
@@ -89,15 +86,15 @@
 </div>
 
 <!-- Add Items Section -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-    <div class="border-b border-gray-200 px-6 py-4">
-        <h2 class="text-xl font-semibold text-gray-800">Add Items</h2>
+<div class="bg-gray-50 rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">Add Items</h2>
     </div>
-    <div class="p-6">
-        <form id="itemForm" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="p-3">
+        <form id="itemForm" class="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
-                <label for="itemSelect" class="block text-sm font-medium text-gray-500 mb-2">Select Item</label>
-                <select class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="itemSelect" required>
+                <label for="itemSelect" class="block text-xs font-medium text-gray-500 mb-1">Select Item</label>
+                <select class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" id="itemSelect" required>
                     <option value="">Choose...</option>
                     {% for item in items %}
                     <option value="{{ item.name }}">{{ item.name }}</option>
@@ -105,64 +102,64 @@
                 </select>
             </div>
             <div>
-                <label for="quantity" class="block text-sm font-medium text-gray-500 mb-2">Quantity</label>
-                <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="quantity" min="1" value="1" required>
+                <label for="quantity" class="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
+                <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" id="quantity" min="1" value="1" required>
             </div>
             <div>
-                <label for="price" class="block text-sm font-medium text-gray-500 mb-2">Price</label>
-                <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="price" min="0.01" step="0.01" required>
+                <label for="price" class="block text-xs font-medium text-gray-500 mb-1">Price</label>
+                <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" id="price" min="0.01" step="0.01" required>
             </div>
             <div class="flex items-end gap-2">
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Add Item</button>
-                <button type="button" id="questionsBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Questions</button>
+                <button type="submit" class="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Add Item</button>
+                <button type="button" id="questionsBtn" class="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">Questions</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Translation Section -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-    <div class="border-b border-gray-200 px-6 py-4">
-        <h2 class="text-xl font-semibold text-gray-800">Translated to Words</h2>
+<div class="bg-gray-50 rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">Translated to Words</h2>
     </div>
-    <div class="p-6">
-        <p id="translationText" class="text-gray-600 whitespace-pre-line">{{ translation }}</p>
+    <div class="p-3">
+        <p id="translationText" class="text-sm text-gray-600 whitespace-pre-line">{{ translation }}</p>
     </div>
 </div>
 
 <!-- Added Items Section -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200">
-    <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-        <h2 class="text-xl font-semibold text-gray-800">Added Items</h2>
-        <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+<div class="bg-gray-50 rounded-xl shadow-sm border border-gray-200">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-100 flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-gray-800">Added Items</h2>
+        <button id="clearButton" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors">
             Clear All Items
         </button>
     </div>
-    <div class="p-6">
+    <div class="p-3">
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-gray-200">
-                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-500">Item</th>
-                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-500">Quantity</th>
-                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-500">Price</th>
-                        <th class="text-left py-3 px-4 text-sm font-semibold text-gray-500">Total</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Item</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Quantity</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Price</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Total</th>
                     </tr>
                 </thead>
                 <tbody id="itemsTable" class="divide-y divide-gray-200">
                     {% for item in project.items %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="py-3 px-4 text-sm text-gray-900">{{ item.name }}</td>
-                        <td class="py-3 px-4 text-sm text-gray-900">{{ item.quantity }}</td>
-                        <td class="py-3 px-4 text-sm text-gray-900">${{ "%.2f"|format(item.price) }}</td>
-                        <td class="py-3 px-4 text-sm text-gray-900">${{ "%.2f"|format(item.quantity * item.price) }}</td>
+                    <tr class="hover:bg-white">
+                        <td class="py-2 px-3 text-sm text-gray-900">{{ item.name }}</td>
+                        <td class="py-2 px-3 text-sm text-gray-900">{{ item.quantity }}</td>
+                        <td class="py-2 px-3 text-sm text-gray-900">${{ "%.2f"|format(item.price) }}</td>
+                        <td class="py-2 px-3 text-sm text-gray-900">${{ "%.2f"|format(item.quantity * item.price) }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="mt-6 text-right">
-            <span id="totalAmount" class="text-lg font-semibold text-gray-800">
+        <div class="mt-3 text-right">
+            <span id="totalAmount" class="text-base font-semibold text-gray-800">
                 Total: ${{ "%.2f"|format(project.items|sum(attribute='price')|float * project.items|sum(attribute='quantity')|float) }}
             </span>
         </div>
