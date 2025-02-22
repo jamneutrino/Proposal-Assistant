@@ -257,6 +257,17 @@ def generate_word(project_id):
         # Calculate total price of all items
         total_price = sum(item.quantity * item.price for item in project.items)
         
+        # Process address for new placeholders
+        street_address = ""
+        city_address = ""
+        if project.address:
+            # Split address by commas
+            parts = [p.strip() for p in project.address.split(',')]
+            if len(parts) >= 3:  # Make sure we have enough parts
+                street_address = parts[0]  # Everything before first comma
+                # Take everything between first and last comma (city, state, zip)
+                city_address = ', '.join(parts[1:-1])
+        
         # Define placeholder mappings with variations
         placeholders = {
             '{{Name}}': project.name or '',
@@ -266,6 +277,8 @@ def generate_word(project_id):
             '{{ContractorEmail}}': project.contractor_email or '',
             '{{JobContact}}': project.job_contact or '',
             '{{JobContactPhone}}': project.job_contact_phone or '',
+            '{{StreetAdd}}': street_address,
+            '{{CityAdd}}': city_address,
             '{{TotalPrice}}': f"${total_price:,.2f}" if total_price else '',
             # Add variations with spaces
             '{{ Name }}': project.name or '',
@@ -275,6 +288,8 @@ def generate_word(project_id):
             '{{ ContractorEmail }}': project.contractor_email or '',
             '{{ JobContact }}': project.job_contact or '',
             '{{ JobContactPhone }}': project.job_contact_phone or '',
+            '{{ StreetAdd }}': street_address,
+            '{{ CityAdd }}': city_address,
             '{{ TotalPrice }}': f"${total_price:,.2f}" if total_price else '',
         }
 
