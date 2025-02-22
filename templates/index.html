@@ -6,104 +6,119 @@
 
 {% block content %}
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-    <div class="mb-8">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Create New Project</h2>
-        <form action="{{ url_for('create_project') }}" method="POST" class="space-y-4">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Your Projects</h2>
+        <button id="createProjectBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Create New Project
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for project in projects %}
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ project.name }}</h3>
+                <p class="text-sm text-gray-600 mb-2">Created: {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                {% if project.contractor_name %}
+                <p class="text-sm text-gray-600 mb-2">Contractor: {{ project.contractor_name }}</p>
+                {% endif %}
+                <div class="flex justify-between items-center">
+                    <a href="{{ url_for('project', project_id=project.id) }}"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        View Project
+                    </a>
+                    <form action="{{ url_for('delete_project', project_id=project.id) }}" method="POST" class="inline">
+                        <button type="submit" onclick="return confirm('Are you sure you want to delete this project?')"
+                            class="px-4 py-2 text-red-600 hover:text-red-800 transition-colors">
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create Project Modal -->
+<div id="createProjectModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-semibold text-gray-800">Create New Project</h3>
+            <button id="closeModalBtn" class="text-gray-400 hover:text-gray-500">
+                <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <form action="{{ url_for('create_project') }}" method="POST" class="space-y-6">
             <!-- Project Name (Required) -->
-            <div>
-                <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1">
+            <div class="form-group">
+                <label for="project_name" class="block text-sm font-medium text-gray-700 mb-2">
                     Project Name <span class="text-red-500">*</span>
                 </label>
                 <input type="text" id="project_name" name="project_name" required
-                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
             </div>
 
             <!-- Date -->
-            <div>
-                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <div class="form-group">
+                <label for="date" class="block text-sm font-medium text-gray-700 mb-2">Date</label>
                 <input type="date" id="date" name="date"
-                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
             </div>
 
             <!-- Address with Autocomplete -->
-            <div>
-                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <div class="form-group">
+                <label for="address" class="block text-sm font-medium text-gray-700 mb-2">Address</label>
                 <input type="text" id="address" name="address"
-                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors"
                     placeholder="Start typing to search for an address...">
                 <div id="address-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden"></div>
             </div>
 
             <!-- Attention To -->
-            <div>
-                <label for="attn" class="block text-sm font-medium text-gray-700 mb-1">Attention To</label>
+            <div class="form-group">
+                <label for="attn" class="block text-sm font-medium text-gray-700 mb-2">Attention To</label>
                 <input type="text" id="attn" name="attn"
-                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
             </div>
 
             <!-- Contractor Information -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="contractor_name" class="block text-sm font-medium text-gray-700 mb-1">Contractor Name</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="contractor_name" class="block text-sm font-medium text-gray-700 mb-2">Contractor Name</label>
                     <input type="text" id="contractor_name" name="contractor_name"
-                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
                 </div>
-                <div>
-                    <label for="contractor_email" class="block text-sm font-medium text-gray-700 mb-1">Contractor Email</label>
+                <div class="form-group">
+                    <label for="contractor_email" class="block text-sm font-medium text-gray-700 mb-2">Contractor Email</label>
                     <input type="email" id="contractor_email" name="contractor_email"
-                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
                 </div>
             </div>
 
             <!-- Job Contact Information -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="job_contact" class="block text-sm font-medium text-gray-700 mb-1">Job Contact</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="job_contact" class="block text-sm font-medium text-gray-700 mb-2">Job Contact</label>
                     <input type="text" id="job_contact" name="job_contact"
-                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
                 </div>
-                <div>
-                    <label for="job_contact_phone" class="block text-sm font-medium text-gray-700 mb-1">Job Contact Phone</label>
+                <div class="form-group">
+                    <label for="job_contact_phone" class="block text-sm font-medium text-gray-700 mb-2">Job Contact Phone</label>
                     <input type="tel" id="job_contact_phone" name="job_contact_phone"
-                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
                 </div>
             </div>
 
             <div class="pt-4">
-                <button type="submit" class="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button type="submit" class="w-full px-6 py-3 bg-blue-600 text-white text-lg font-medium rounded-lg hover:bg-blue-700 transition-colors">
                     Create Project
                 </button>
             </div>
         </form>
-    </div>
-
-    <div>
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Projects</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for project in projects %}
-            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                <div class="p-4">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ project.name }}</h3>
-                    <p class="text-sm text-gray-600 mb-2">Created: {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-                    {% if project.contractor_name %}
-                    <p class="text-sm text-gray-600 mb-2">Contractor: {{ project.contractor_name }}</p>
-                    {% endif %}
-                    <div class="flex justify-between items-center">
-                        <a href="{{ url_for('project', project_id=project.id) }}"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            View Project
-                        </a>
-                        <form action="{{ url_for('delete_project', project_id=project.id) }}" method="POST" class="inline">
-                            <button type="submit" onclick="return confirm('Are you sure you want to delete this project?')"
-                                class="px-4 py-2 text-red-600 hover:text-red-800 transition-colors">
-                                Delete
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
     </div>
 </div>
 {% endblock %}
@@ -112,8 +127,33 @@
 <script>
     const addressInput = document.getElementById('address');
     const suggestionsContainer = document.getElementById('address-suggestions');
+    const createProjectBtn = document.getElementById('createProjectBtn');
+    const createProjectModal = document.getElementById('createProjectModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
     let debounceTimer;
 
+    // Modal functionality
+    function showModal() {
+        createProjectModal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling when modal is open
+    }
+
+    function hideModal() {
+        createProjectModal.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+
+    createProjectBtn.addEventListener('click', showModal);
+    closeModalBtn.addEventListener('click', hideModal);
+
+    // Close modal when clicking outside
+    createProjectModal.addEventListener('click', (e) => {
+        if (e.target === createProjectModal) {
+            hideModal();
+        }
+    });
+
+    // Address autocomplete
     addressInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
         if (this.value.length < 3) {
