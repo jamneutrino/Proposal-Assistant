@@ -17,6 +17,55 @@
     </div>
 </div>
 
+<!-- Project Details Section -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+    <div class="p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Created</p>
+                <p class="text-gray-800">{{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            {% if project.date %}
+            <div>
+                <p class="text-sm font-medium text-gray-600">Date</p>
+                <p class="text-gray-800">{{ project.date }}</p>
+            </div>
+            {% endif %}
+            {% if project.attn %}
+            <div>
+                <p class="text-sm font-medium text-gray-600">Attention To</p>
+                <p class="text-gray-800">{{ project.attn }}</p>
+            </div>
+            {% endif %}
+            {% if project.contractor_name %}
+            <div>
+                <p class="text-sm font-medium text-gray-600">Contractor Name</p>
+                <p class="text-gray-800">{{ project.contractor_name }}</p>
+            </div>
+            {% endif %}
+            {% if project.contractor_email %}
+            <div>
+                <p class="text-sm font-medium text-gray-600">Contractor Email</p>
+                <p class="text-gray-800">{{ project.contractor_email }}</p>
+            </div>
+            {% endif %}
+            {% if project.job_contact %}
+            <div>
+                <p class="text-sm font-medium text-gray-600">Job Contact</p>
+                <p class="text-gray-800">{{ project.job_contact }}</p>
+            </div>
+            {% endif %}
+            {% if project.job_contact_phone %}
+            <div>
+                <p class="text-sm font-medium text-gray-600">Job Contact Phone</p>
+                <p class="text-gray-800">{{ project.job_contact_phone }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
     <div class="p-6">
         <form id="itemForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">

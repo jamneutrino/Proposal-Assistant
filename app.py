@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from datetime import datetime
 from sheets_helper import get_sheet_data
 from docx import Document
@@ -35,6 +36,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -93,8 +95,14 @@ def update_price_cache():
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(100))
+    attn = db.Column(db.String(100))
+    contractor_name = db.Column(db.String(100))
+    contractor_email = db.Column(db.String(100))
+    job_contact = db.Column(db.String(100))
+    job_contact_phone = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    items = db.relationship('Item', backref='project', lazy=True)
+    items = db.relationship('Item', backref='project', lazy=True, cascade='all, delete-orphan')
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -166,12 +174,21 @@ def get_price(item_name):
 @app.route('/create_project', methods=['POST'])
 def create_project():
     name = request.form.get('project_name')
-    if name:
-        project = Project(name=name)
-        db.session.add(project)
-        db.session.commit()
-        return redirect(url_for('project', project_id=project.id))
-    return redirect(url_for('index'))
+    if not name:  # Name is required
+        return jsonify({'error': 'Project name is required'}), 400
+        
+    project = Project(
+        name=name,
+        date=request.form.get('date', ''),
+        attn=request.form.get('attn', ''),
+        contractor_name=request.form.get('contractor_name', ''),
+        contractor_email=request.form.get('contractor_email', ''),
+        job_contact=request.form.get('job_contact', ''),
+        job_contact_phone=request.form.get('job_contact_phone', '')
+    )
+    db.session.add(project)
+    db.session.commit()
+    return redirect(url_for('project', project_id=project.id))
 
 @app.route('/add_item/<int:project_id>', methods=['POST'])
 def add_item(project_id):
@@ -213,6 +230,11 @@ def clear_items(project_id):
 @app.route('/delete_project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
     project = Project.query.get_or_404(project_id)
+    
+    # First delete all items associated with the project
+    Item.query.filter_by(project_id=project_id).delete()
+    
+    # Then delete the project
     db.session.delete(project)
     db.session.commit()
     return redirect(url_for('index'))
@@ -228,26 +250,279 @@ def generate_word(project_id):
         # Load the template
         template_path = os.path.join('static/generated_docs', 'template.docx')
         doc = Document(template_path)
+
+        # Calculate total price of all items
+        total_price = sum(item.quantity * item.price for item in project.items)
         
-        # Replace placeholders in paragraphs
-        for paragraph in doc.paragraphs:
-            if '{{Name}}' in paragraph.text:
-                # Store the original formatting
-                runs = paragraph.runs
+        # Define placeholder mappings with variations
+        placeholders = {
+            '{{Name}}': project.name or '',
+            '{{Date}}': project.date or '',
+            '{{Attn}}': project.attn or '',
+            '{{ContractorName}}': project.contractor_name or '',
+            '{{ContractorEmail}}': project.contractor_email or '',
+            '{{JobContact}}': project.job_contact or '',
+            '{{JobContactPhone}}': project.job_contact_phone or '',
+            '{{TotalPrice}}': f"${total_price:,.2f}" if total_price else '',
+            # Add variations with spaces
+            '{{ Name }}': project.name or '',
+            '{{ Date }}': project.date or '',
+            '{{ Attn }}': project.attn or '',
+            '{{ ContractorName }}': project.contractor_name or '',
+            '{{ ContractorEmail }}': project.contractor_email or '',
+            '{{ JobContact }}': project.job_contact or '',
+            '{{ JobContactPhone }}': project.job_contact_phone or '',
+            '{{ TotalPrice }}': f"${total_price:,.2f}" if total_price else '',
+        }
+
+        def find_placeholder(text):
+            """Find any placeholder in the text"""
+            for placeholder in placeholders:
+                if placeholder in text:
+                    print(f"Found placeholder: {placeholder} in text: {text}")  # Debug logging
+                    return placeholder
+            return None
+
+        def process_text(text, formatting_info=None):
+            """Process text and maintain formatting"""
+            if not text:
+                return text
+                
+            result = text
+            print(f"Processing text: {text}")  # Debug logging
+            
+            # Normalize the text for comparison
+            normalized_text = ''.join(text.split()).lower()  # Remove all whitespace and convert to lowercase
+            
+            # Check for contractor fields in normalized text
+            if 'contractorname' in normalized_text:
+                print(f"Found ContractorName in: {text}")  # Debug logging
+                value = project.contractor_name or ''
+                # Remove any curly braces around the value
+                if value.startswith('{{') and value.endswith('}}'):
+                    value = value[2:-2]
+                return value
+            
+            if 'contractoremail' in normalized_text:
+                print(f"Found ContractorEmail in: {text}")  # Debug logging
+                value = project.contractor_email or ''
+                # Remove any curly braces around the value
+                if value.startswith('{{') and value.endswith('}}'):
+                    value = value[2:-2]
+                return value
+            
+            # Handle other placeholders
+            for placeholder, value in placeholders.items():
+                if placeholder in text:
+                    print(f"Replacing {placeholder} with {value}")  # Debug logging
+                    # Remove any curly braces around the value
+                    if value.startswith('{{') and value.endswith('}}'):
+                        value = value[2:-2]
+                    result = result.replace(placeholder, value)
+            
+            return result
+
+        def process_paragraph(paragraph):
+            # First, collect all runs and their text
+            runs = paragraph.runs
+            if not runs:
+                return
+
+            # Get the full paragraph text and print it for debugging
+            full_text = paragraph.text
+            print(f"Processing paragraph text: {full_text}")  # Debug logging
+            
+            # Normalize the text for comparison
+            normalized_text = ''.join(full_text.split()).lower()  # Remove whitespace and convert to lowercase
+            
+            # Special handling for contractor fields
+            if 'contractorname' in normalized_text or 'contractoremail' in normalized_text:
+                # Process each run individually to maintain formatting
                 for run in runs:
-                    if '{{Name}}' in run.text:
-                        # Replace while preserving the run's formatting
-                        run.text = run.text.replace('{{Name}}', project.name)
+                    normalized_run = ''.join(run.text.split()).lower()
+                    if 'contractorname' in normalized_run:
+                        value = project.contractor_name or ''
+                        # Remove any curly braces around the value
+                        if value.startswith('{{') and value.endswith('}}'):
+                            value = value[2:-2]
+                        run.text = value
+                    elif 'contractoremail' in normalized_run:
+                        value = project.contractor_email or ''
+                        # Remove any curly braces around the value
+                        if value.startswith('{{') and value.endswith('}}'):
+                            value = value[2:-2]
+                        run.text = value
+                return
+
+            # Check if there are any other placeholders in the full text
+            has_placeholders = any(p in full_text for p in placeholders)
+            if not has_placeholders:
+                return
+
+            # Store formatting information for each character position
+            formatting = []
+            current_pos = 0
+            
+            for run in runs:
+                print(f"Run text: {run.text}")  # Debug logging
+                for _ in range(len(run.text)):
+                    formatting.append({
+                        'bold': run.bold,
+                        'italic': run.italic,
+                        'underline': run.underline,
+                        'font_size': run.font.size,
+                        'font_name': run.font.name,
+                        'style': run.style
+                    })
+                current_pos += len(run.text)
+
+            # Replace all placeholders in the full text
+            new_text = process_text(full_text)
+            print(f"Text after replacement: {new_text}")  # Debug logging
+
+            # Clear the paragraph
+            paragraph.clear()
+
+            # Add the text back with original formatting
+            if len(formatting) > 0:
+                current_format = formatting[0]
+                current_text = ""
+
+                for i, char in enumerate(new_text):
+                    # If we have formatting information for this position and it's different
+                    # from current format, create a new run
+                    if i < len(formatting) and (
+                        formatting[i]['bold'] != current_format['bold'] or
+                        formatting[i]['italic'] != current_format['italic'] or
+                        formatting[i]['underline'] != current_format['underline'] or
+                        formatting[i]['font_size'] != current_format['font_size'] or
+                        formatting[i]['font_name'] != current_format['font_name']
+                    ):
+                        if current_text:
+                            run = paragraph.add_run(current_text)
+                            apply_format(run, current_format)
+                            current_text = ""
+                        current_format = formatting[i]
+
+                    current_text += char
+
+                # Add any remaining text
+                if current_text:
+                    run = paragraph.add_run(current_text)
+                    apply_format(run, current_format)
+
+        def apply_format(run, format_dict):
+            """Apply stored formatting to a run"""
+            run.bold = format_dict['bold']
+            run.italic = format_dict['italic']
+            run.underline = format_dict['underline']
+            if format_dict['font_size']:
+                run.font.size = format_dict['font_size']
+            if format_dict['font_name']:
+                run.font.name = format_dict['font_name']
+            if format_dict['style']:
+                run.style = format_dict['style']
+
+        def process_table_cell(cell):
+            """Process all paragraphs in a table cell"""
+            for paragraph in cell.paragraphs:
+                process_paragraph(paragraph)
+
+        def process_shapes():
+            """Process text in shapes and textboxes"""
+            # Get all shapes from the document
+            for shape in doc.inline_shapes:
+                try:
+                    # Try to access the textframe if it exists
+                    if hasattr(shape, '_inline') and hasattr(shape._inline, 'graphic'):
+                        # Access the shape's text frame
+                        text_frame = shape._inline.graphic.graphicData.find('.//{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}txbx')
+                        if text_frame is not None:
+                            # Process each paragraph in the text frame
+                            for paragraph in text_frame.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p'):
+                                # Get all text elements in this paragraph
+                                text_elements = paragraph.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t')
+                                if text_elements:
+                                    # Combine all text elements to get the full text
+                                    full_text = ''.join(elem.text or '' for elem in text_elements)
+                                    print(f"Processing textbox full text: {full_text}")  # Debug logging
+                                    
+                                    # Check for contractor fields
+                                    if 'ContractorName' in full_text:
+                                        new_text = project.contractor_name or ''
+                                        # Set the text in the first element and clear the others
+                                        text_elements[0].text = new_text
+                                        for elem in text_elements[1:]:
+                                            elem.text = ''
+                                    elif 'ContractorEmail' in full_text:
+                                        new_text = project.contractor_email or ''
+                                        # Set the text in the first element and clear the others
+                                        text_elements[0].text = new_text
+                                        for elem in text_elements[1:]:
+                                            elem.text = ''
+                                    else:
+                                        # Handle other placeholders
+                                        new_text = process_text(full_text)
+                                        text_elements[0].text = new_text
+                                        for elem in text_elements[1:]:
+                                            elem.text = ''
+                except Exception as e:
+                    print(f"Error processing shape: {str(e)}")
+                    continue
+
+            # Process floating shapes (if any)
+            body = doc._body._body
+            for shape in body.findall('.//w:drawing', {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}):
+                try:
+                    # Try to find textboxes in the shape
+                    textboxes = shape.findall('.//wps:txbx//w:p', {
+                        'wps': 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape',
+                        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+                    })
+                    
+                    for textbox in textboxes:
+                        # Get all text elements in this textbox
+                        text_elements = textbox.findall('.//w:t', {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'})
+                        if text_elements:
+                            # Combine all text elements to get the full text
+                            full_text = ''.join(elem.text or '' for elem in text_elements)
+                            print(f"Processing textbox full text: {full_text}")  # Debug logging
+                            
+                            # Check for contractor fields
+                            if 'ContractorName' in full_text:
+                                new_text = project.contractor_name or ''
+                                # Set the text in the first element and clear the others
+                                text_elements[0].text = new_text
+                                for elem in text_elements[1:]:
+                                    elem.text = ''
+                            elif 'ContractorEmail' in full_text:
+                                new_text = project.contractor_email or ''
+                                # Set the text in the first element and clear the others
+                                text_elements[0].text = new_text
+                                for elem in text_elements[1:]:
+                                    elem.text = ''
+                            else:
+                                # Handle other placeholders
+                                new_text = process_text(full_text)
+                                text_elements[0].text = new_text
+                                for elem in text_elements[1:]:
+                                    elem.text = ''
+                except Exception as e:
+                    print(f"Error processing floating shape: {str(e)}")
+                    continue
+
+        # Process all paragraphs in the main document
+        for paragraph in doc.paragraphs:
+            process_paragraph(paragraph)
         
-        # Also check tables if any
+        # Process all tables
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        if '{{Name}}' in paragraph.text:
-                            for run in paragraph.runs:
-                                if '{{Name}}' in run.text:
-                                    run.text = run.text.replace('{{Name}}', project.name)
+                    process_table_cell(cell)
+
+        # Process shapes and textboxes
+        process_shapes()
         
         # Create output filename with timestamp
         output_filename = f'output_{project.name}_{int(time.time())}.docx'
