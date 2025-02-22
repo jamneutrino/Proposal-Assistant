@@ -101,6 +101,7 @@ class Project(db.Model):
     contractor_email = db.Column(db.String(100))
     job_contact = db.Column(db.String(100))
     job_contact_phone = db.Column(db.String(100))
+    address = db.Column(db.String(200))  # New field for address
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     items = db.relationship('Item', backref='project', lazy=True, cascade='all, delete-orphan')
 
@@ -148,7 +149,8 @@ def translate_to_words(items):
 @app.route('/')
 def index():
     projects = Project.query.order_by(Project.created_at.desc()).all()
-    return render_template('index.html', projects=projects)
+    geoapify_api_key = os.getenv('GEOAPIFY_API_KEY')
+    return render_template('index.html', projects=projects, geoapify_api_key=geoapify_api_key)
 
 @app.route('/project/<int:project_id>')
 def project(project_id):
@@ -184,7 +186,8 @@ def create_project():
         contractor_name=request.form.get('contractor_name', ''),
         contractor_email=request.form.get('contractor_email', ''),
         job_contact=request.form.get('job_contact', ''),
-        job_contact_phone=request.form.get('job_contact_phone', '')
+        job_contact_phone=request.form.get('job_contact_phone', ''),
+        address=request.form.get('address', '')
     )
     db.session.add(project)
     db.session.commit()

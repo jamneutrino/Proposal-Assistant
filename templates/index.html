@@ -25,6 +25,15 @@
                     class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
 
+            <!-- Address with Autocomplete -->
+            <div>
+                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <input type="text" id="address" name="address"
+                    class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Start typing to search for an address...">
+                <div id="address-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden"></div>
+            </div>
+
             <!-- Attention To -->
             <div>
                 <label for="attn" class="block text-sm font-medium text-gray-700 mb-1">Attention To</label>
@@ -97,4 +106,54 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const addressInput = document.getElementById('address');
+    const suggestionsContainer = document.getElementById('address-suggestions');
+    let debounceTimer;
+
+    addressInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        if (this.value.length < 3) {
+            suggestionsContainer.classList.add('hidden');
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            const apiKey = '{{ geoapify_api_key }}';
+            const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(this.value)}&format=json&apiKey=${apiKey}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    suggestionsContainer.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(result => {
+                            const div = document.createElement('div');
+                            div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                            div.textContent = result.formatted;
+                            div.addEventListener('click', () => {
+                                addressInput.value = result.formatted;
+                                suggestionsContainer.classList.add('hidden');
+                            });
+                            suggestionsContainer.appendChild(div);
+                        });
+                        suggestionsContainer.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching address suggestions:', error);
+                });
+        }, 300);
+    });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!addressInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            suggestionsContainer.classList.add('hidden');
+        }
+    });
+</script>
 {% endblock %} 
