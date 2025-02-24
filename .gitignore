@@ -51,7 +51,12 @@ env/
 *.log
 logs/
 
-# Include static folder with template files
+# Document files (general rule)
+*.docx
+*.doc
+*.pdf
+
+# Exceptions - Include specific files and folders
 !static/
 !static/reference.docx
 !static/template.docx
