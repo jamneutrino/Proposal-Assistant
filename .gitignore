@@ -49,4 +49,13 @@ env/
 
 # Logs
 *.log
-logs/ 
+logs/
+
+# Include static folder with template files
+!static/
+!static/reference.docx
+!static/template.docx
+
+# Include generated_docs folder but exclude its contents
+!generated_docs/
+generated_docs/*.docx 
