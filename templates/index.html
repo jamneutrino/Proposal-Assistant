@@ -65,8 +65,9 @@
             <!-- Date -->
             <div class="form-group">
                 <label for="date" class="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                <input type="date" id="date" name="date"
+                <input type="text" id="date" name="date" placeholder="MM-DD-YYYY" pattern="(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[0-9]{4}"
                     class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200 transition-colors">
+                <small class="text-gray-500">Format: MM-DD-YYYY (e.g., 01-15-2025)</small>
             </div>
 
             <!-- Address with Autocomplete -->

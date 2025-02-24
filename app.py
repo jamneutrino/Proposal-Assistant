@@ -91,6 +91,23 @@ def update_price_cache():
             price_cache = new_prices
             last_update = current_time
 
+def format_date(date_str):
+    """Format a date string to MM-DD-YYYY format if possible"""
+    if not date_str:
+        return ""
+    
+    # Try different common formats
+    formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']
+    for fmt in formats:
+        try:
+            date_obj = datetime.strptime(date_str, fmt)
+            return date_obj.strftime('%m-%d-%Y')
+        except ValueError:
+            continue
+    
+    # If already in MM-DD-YYYY format or unknown format, return as is
+    return date_str
+
 # Database Models
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -156,6 +173,11 @@ def index():
 def project(project_id):
     update_price_cache()  # Update prices when viewing a project
     project = Project.query.get_or_404(project_id)
+    
+    # Format the date to MM-DD-YYYY
+    if project.date:
+        project.date = format_date(project.date)
+    
     translation = translate_to_words(project.items)
     
     # Pass the items list with their names and image paths
@@ -178,10 +200,21 @@ def create_project():
     name = request.form.get('project_name')
     if not name:  # Name is required
         return jsonify({'error': 'Project name is required'}), 400
+    
+    # Get date and ensure it's in MM-DD-YYYY format
+    date = request.form.get('date', '')
+    if date:
+        # If date is in YYYY-MM-DD format (from older form submissions), convert it
+        if len(date) == 10 and date[4] == '-' and date[7] == '-':
+            try:
+                date_obj = datetime.strptime(date, '%Y-%m-%d')
+                date = date_obj.strftime('%m-%d-%Y')
+            except ValueError:
+                pass  # Keep original if parsing fails
         
     project = Project(
         name=name,
-        date=request.form.get('date', ''),
+        date=date,
         attn=request.form.get('attn', ''),
         contractor_name=request.form.get('contractor_name', ''),
         contractor_email=request.form.get('contractor_email', ''),
@@ -271,7 +304,7 @@ def generate_word(project_id):
         # Define placeholder mappings with variations
         placeholders = {
             '{{Name}}': project.name or '',
-            '{{Date}}': project.date or '',
+            '{{Date}}': format_date(project.date) if project.date else '',
             '{{Attn}}': project.attn or '',
             '{{ContractorName}}': project.contractor_name or '',
             '{{ContractorEmail}}': project.contractor_email or '',
@@ -280,9 +313,9 @@ def generate_word(project_id):
             '{{StreetAdd}}': street_address,
             '{{CityAdd}}': city_address,
             '{{TotalPrice}}': f"${total_price:,.2f}" if total_price else '',
-            # Add variations with spaces
+            # Also add variations with spaces
             '{{ Name }}': project.name or '',
-            '{{ Date }}': project.date or '',
+            '{{ Date }}': format_date(project.date) if project.date else '',
             '{{ Attn }}': project.attn or '',
             '{{ ContractorName }}': project.contractor_name or '',
             '{{ ContractorEmail }}': project.contractor_email or '',
