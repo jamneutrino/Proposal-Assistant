@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from datetime import datetime
+from datetime import datetime, timedelta
 from sheets_helper import get_sheet_data
 from docx import Document
 from docx.shared import Pt
@@ -15,6 +15,8 @@ from docx.oxml.ns import qn
 from dotenv import load_dotenv
 import os
 from werkzeug.utils import secure_filename
+import json
+import re
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,6 +39,70 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# Create a lock for thread-safe operations
+cleanup_lock = threading.Lock()
+
+# Function to clean up old temporary files
+def cleanup_old_files():
+    """Clean up temporary document files older than 15 minutes"""
+    try:
+        with cleanup_lock:
+            docs_dir = 'static/generated_docs'
+            if not os.path.exists(docs_dir):
+                return
+                
+            current_time = time.time()
+            fifteen_minutes_ago = current_time - 900  # 15 minutes in seconds
+            
+            # Get all files in the directory
+            for filename in os.listdir(docs_dir):
+                # Skip template files
+                if filename in ['template.docx', 'reference.docx']:
+                    continue
+                    
+                # Check if it's an output file
+                if filename.startswith('output_'):
+                    file_path = os.path.join(docs_dir, filename)
+                    
+                    # Check if it's a file and not a directory
+                    if os.path.isfile(file_path):
+                        # Get the file's modification time
+                        file_mod_time = os.path.getmtime(file_path)
+                        
+                        # If the file is older than 15 minutes, delete it
+                        if file_mod_time < fifteen_minutes_ago:
+                            try:
+                                os.remove(file_path)
+                                print(f"Cleaned up old temporary file: {file_path}")
+                            except Exception as e:
+                                print(f"Error removing old file {file_path}: {str(e)}")
+                                # Try again with a delay
+                                try:
+                                    time.sleep(0.5)
+                                    if os.path.exists(file_path):
+                                        os.remove(file_path)
+                                        print(f"Cleaned up old temporary file on second attempt: {file_path}")
+                                except Exception as e2:
+                                    print(f"Failed to remove file on second attempt: {str(e2)}")
+    except Exception as e:
+        print(f"Error in cleanup_old_files: {str(e)}")
+
+# Schedule periodic cleanup
+def start_cleanup_scheduler():
+    """Start a background thread to periodically clean up old files"""
+    def run_cleanup():
+        while True:
+            cleanup_old_files()
+            # Sleep for 15 minutes before next cleanup
+            time.sleep(900)
+    
+    # Start the cleanup thread
+    cleanup_thread = threading.Thread(target=run_cleanup, daemon=True)
+    cleanup_thread.start()
+
+# Start the cleanup scheduler when the app starts
+start_cleanup_scheduler()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -594,11 +660,38 @@ def generate_word(project_id):
         @response.call_on_close
         def cleanup():
             try:
+                # Wait a short time to ensure the file is fully sent
+                time.sleep(0.5)
                 if os.path.exists(output_path):
                     os.remove(output_path)
-                print(f"Successfully cleaned up {output_path}")
+                    print(f"Successfully cleaned up {output_path}")
+                else:
+                    print(f"File {output_path} already removed or does not exist")
             except Exception as e:
                 print(f"Error cleaning up {output_path}: {str(e)}")
+                # Try again after a delay in case the file is still in use
+                try:
+                    time.sleep(1)
+                    if os.path.exists(output_path):
+                        os.remove(output_path)
+                        print(f"Successfully cleaned up {output_path} on second attempt")
+                except Exception as e2:
+                    print(f"Failed to clean up {output_path} on second attempt: {str(e2)}")
+        
+        # Schedule a delayed cleanup task as a backup
+        def delayed_cleanup():
+            time.sleep(5)  # Wait 5 seconds after response is sent
+            try:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                    print(f"Successfully cleaned up {output_path} with delayed cleanup")
+            except Exception as e:
+                print(f"Error in delayed cleanup for {output_path}: {str(e)}")
+        
+        # Start the delayed cleanup in a separate thread
+        cleanup_thread = threading.Thread(target=delayed_cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
         
         return response
         
@@ -707,6 +800,56 @@ def admin_delete_item():
         return jsonify({'success': True})
     
     return jsonify({'success': False}), 400
+
+# Function to immediately clean up all temporary files
+def cleanup_all_temp_files():
+    """Clean up all temporary document files regardless of age"""
+    try:
+        with cleanup_lock:
+            docs_dir = 'static/generated_docs'
+            if not os.path.exists(docs_dir):
+                return
+            
+            files_cleaned = 0
+            
+            # Get all files in the directory
+            for filename in os.listdir(docs_dir):
+                # Skip template files
+                if filename in ['template.docx', 'reference.docx']:
+                    continue
+                    
+                # Check if it's an output file
+                if filename.startswith('output_'):
+                    file_path = os.path.join(docs_dir, filename)
+                    
+                    # Check if it's a file and not a directory
+                    if os.path.isfile(file_path):
+                        try:
+                            os.remove(file_path)
+                            files_cleaned += 1
+                            print(f"Cleaned up temporary file: {file_path}")
+                        except Exception as e:
+                            print(f"Error removing file {file_path}: {str(e)}")
+                            # Try again with a delay
+                            try:
+                                time.sleep(0.5)
+                                if os.path.exists(file_path):
+                                    os.remove(file_path)
+                                    files_cleaned += 1
+                                    print(f"Cleaned up temporary file on second attempt: {file_path}")
+                            except Exception as e2:
+                                print(f"Failed to remove file on second attempt: {str(e2)}")
+            
+            return files_cleaned
+    except Exception as e:
+        print(f"Error in cleanup_all_temp_files: {str(e)}")
+        return 0
+
+@app.route('/admin/cleanup_temp_files', methods=['POST'])
+def admin_cleanup_temp_files():
+    """Admin route to clean up all temporary files"""
+    files_cleaned = cleanup_all_temp_files()
+    return jsonify({'success': True, 'files_cleaned': files_cleaned})
 
 # Create the database tables
 with app.app_context():
