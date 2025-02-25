@@ -16,9 +16,3 @@ Flask-WTF==1.2.1
 Flask-Limiter==3.5.0
 python-magic==0.4.27
 validators==0.22.0
-gunicorn>=20.1.0
-fastapi>=0.95.0
-uvicorn>=0.21.1
-pydantic>=1.10.7
-python-multipart>=0.0.6
-jinja2>=3.1.2
