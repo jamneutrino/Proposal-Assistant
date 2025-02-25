@@ -1279,7 +1279,6 @@ with app.app_context():
     db.create_all()
     # No need to initialize auth again, it's already done above
 
-if __name__ == '__main__':
-    # Initial price cache update
-    update_price_cache()
-    app.run(debug=os.getenv('FLASK_ENV') == 'development', port=8000) 
+if __name__ == "__main__":
+    # Development server
+    app.run(host='0.0.0.0', port=8080, debug=False) 
