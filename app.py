@@ -268,17 +268,18 @@ def create_project():
     if not name:  # Name is required
         return jsonify({'error': 'Project name is required'}), 400
     
-    # Get date and ensure it's in MM-DD-YYYY format
+    # Get date from the form
     date = request.form.get('date', '')
+    
+    # Convert date from YYYY-MM-DD (HTML date input format) to MM-DD-YYYY (app format)
     if date:
-        # If date is in YYYY-MM-DD format (from older form submissions), convert it
-        if len(date) == 10 and date[4] == '-' and date[7] == '-':
-            try:
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                date = date_obj.strftime('%m-%d-%Y')
-            except ValueError:
-                pass  # Keep original if parsing fails
-        
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            date = date_obj.strftime('%m-%d-%Y')
+        except ValueError:
+            # If parsing fails, use format_date function as fallback
+            date = format_date(date)
+    
     project = Project(
         name=name,
         date=date,
