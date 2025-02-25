@@ -49,4 +49,18 @@ env/
 
 # Logs
 *.log
-logs/ 
+logs/
+
+# Document files (general rule)
+*.docx
+*.doc
+*.pdf
+
+# Exceptions - Include specific files and folders
+!static/
+!static/reference.docx
+!static/template.docx
+
+# Include generated_docs folder but exclude its contents
+!generated_docs/
+generated_docs/*.docx 

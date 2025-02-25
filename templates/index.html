@@ -1,67 +1,687 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Manager</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .container { max-width: 800px; }
-        .project-list { margin-top: 2rem; }
-    </style>
-</head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="mb-4">Projects</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjectModal">New Project</button>
-        </div>
-        
-        <div class="project-list">
-            {% if projects %}
-                <div class="list-group">
-                    {% for project in projects %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('project', project_id=project.id) }}" class="text-decoration-none flex-grow-1">
-                            {{ project.name }}
-                            <small class="text-muted d-block">Created: {{ project.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                        </a>
-                        <form action="{{ url_for('delete_project', project_id=project.id) }}" method="POST" class="ms-3" style="display: inline;">
-                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this project?')">Delete</button>
-                        </form>
-                    </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="alert alert-info">No projects yet. Create a new project to get started!</div>
-            {% endif %}
-        </div>
-    </div>
+{% extends "base.html" %}
 
-    <!-- New Project Modal -->
-    <div class="modal fade" id="newProjectModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Create New Project</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ url_for('create_project') }}" method="POST">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="project_name" class="form-label">Project Name</label>
-                            <input type="text" class="form-control" id="project_name" name="project_name" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Create Project</button>
-                    </div>
-                </form>
+{% block title %}Projects{% endblock %}
+
+{% block nav_home %}text-gray-900 border-b-2 border-primary-500{% endblock %}
+{% block mobile_nav_home %}text-primary-700 bg-primary-50 border-l-4 border-primary-500{% endblock %}
+
+{% block nav_actions %}
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Custom background pattern */
+    body {
+        background-color: #f9fafb;
+        background-image: 
+            radial-gradient(#e5e7eb 1px, transparent 1px),
+            radial-gradient(#e5e7eb 1px, transparent 1px);
+        background-size: 40px 40px;
+        background-position: 0 0, 20px 20px;
+    }
+
+    /* Enhanced styling for content container */
+    .content-container {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Decorative elements */
+    .decorative-circle {
+        position: absolute;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(79, 70, 229, 0.1));
+        z-index: 0;
+    }
+
+    /* Enhanced card styling */
+    .project-card {
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .project-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.07), 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .project-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 6px;
+        background: linear-gradient(90deg, rgb(79, 70, 229), rgb(129, 140, 248));
+    }
+
+    /* Enhanced empty state */
+    .empty-state {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #ffffff, #f9fafb);
+    }
+
+    .empty-state::before {
+        content: '';
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(224, 231, 255, 0.7) 0%, rgba(224, 231, 255, 0) 70%);
+        top: -150px;
+        right: -150px;
+        border-radius: 50%;
+        z-index: 0;
+    }
+
+    .empty-state::after {
+        content: '';
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(224, 231, 255, 0.5) 0%, rgba(224, 231, 255, 0) 70%);
+        bottom: -100px;
+        left: -100px;
+        border-radius: 50%;
+        z-index: 0;
+    }
+
+    /* Enhanced page title */
+    .page-title-container {
+        position: relative;
+        overflow: hidden;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        margin-bottom: 2rem;
+    }
+
+    .page-title-container::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 4px;
+        background: linear-gradient(to bottom, rgb(79, 70, 229), rgb(129, 140, 248));
+    }
+
+    /* Enhanced dropdown menu animation */
+    .dropdown-menu {
+        transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+        pointer-events: none;
+    }
+    .dropdown-menu.active {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+
+    /* Animated badge for project cards */
+    .recent-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(135deg, #9333ea, #6366f1);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+        }
+    }
+
+    /* Enhanced button styling */
+    .btn-primary {
+        background: linear-gradient(135deg, rgb(79, 70, 229), rgb(99, 102, 241));
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 8px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Enhanced modal styling */
+    #createProjectModal .modal-content {
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+    }
+    
+    /* Subtle animations */
+    @keyframes fadeInUp {
+        from {
+            transform: translateY(10px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    .fade-in-up {
+        animation: fadeInUp 0.4s ease-out forwards;
+    }
+    
+    /* Staggered animations for cards */
+    .staggered-animation > * {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    
+    /* Animation delay classes for staggered animations */
+    .delay-0 { animation-delay: 0s; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+    .delay-5 { animation-delay: 0.5s; }
+    .delay-6 { animation-delay: 0.6s; }
+    .delay-7 { animation-delay: 0.7s; }
+    .delay-8 { animation-delay: 0.8s; }
+    .delay-9 { animation-delay: 0.9s; }
+    
+    /* Animation class */
+    .animate-fadeInUp {
+        animation: fadeInUp 0.4s ease-out forwards;
+    }
+</style>
+
+<!-- Decorative elements -->
+<div class="decorative-circle" style="width: 300px; height: 300px; top: -150px; right: -100px; opacity: 0.1;"></div>
+<div class="decorative-circle" style="width: 200px; height: 200px; bottom: 100px; left: -100px; opacity: 0.05;"></div>
+
+<div class="content-container">
+    <!-- Enhanced page title section -->
+    <div class="page-title-container fade-in-up">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Your Projects</h1>
+                <p class="mt-2 text-gray-600">Manage and create new project proposals</p>
+            </div>
+            <div class="mt-4 sm:mt-0">
+                <button id="createProjectBtn" class="btn-primary inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    New Project
+                </button>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html> 
+    {% if projects|length == 0 %}
+    <!-- Enhanced empty state -->
+    <div class="empty-state bg-white rounded-xl shadow-md border border-gray-200 p-8 text-center fade-in-up" style="animation-delay: 0.1s;">
+        <div class="relative z-10">
+            <div class="mx-auto w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mb-6 transform transition-transform hover:scale-110 duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-semibold text-gray-900 mb-3">No projects yet</h3>
+            <p class="text-gray-600 mb-8 max-w-md mx-auto">Get started by creating your first project and begin organizing your proposals efficiently</p>
+            <button id="emptyStateCreateBtn" class="btn-primary inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Create New Project
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 staggered-animation">
+        {% for project in projects %}
+        <div class="project-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 animate-fadeInUp delay-{{ loop.index0 if loop.index0 < 10 else 9 }}">
+            <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ project.name }}</h3>
+                        <p class="text-sm text-gray-500">Created: {{ project.created_at.strftime('%b %d, %Y') }}</p>
+                    </div>
+                    <div class="relative dropdown-container">
+                        <button class="dropdown-toggle text-gray-400 hover:text-gray-500 focus:outline-none p-1 hover:bg-gray-100 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 000 4zM10 18a2 2 0 110-4 2 2 0 000 4z" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                            <div class="py-1">
+                                <a href="{{ url_for('project', project_id=project.id) }}" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                    </svg>
+                                    View Project
+                                </a>
+                            </div>
+                            <div class="py-1">
+                                <form action="{{ url_for('delete_project', project_id=project.id) }}" method="POST" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this project?')" class="group flex w-full items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+                                        <svg class="mr-3 h-5 w-5 text-red-400 group-hover:text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if project.contractor_name %}
+                <div class="flex items-center mb-3 text-sm">
+                    <div class="flex-shrink-0 bg-primary-100 rounded-full p-1.5 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <span class="text-gray-600">{{ project.contractor_name }}</span>
+                </div>
+                {% endif %}
+                
+                {% if project.address %}
+                <div class="flex items-center mb-3 text-sm">
+                    <div class="flex-shrink-0 bg-primary-100 rounded-full p-1.5 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <span class="text-gray-600 truncate">{{ project.address }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="mt-5">
+                    <a href="{{ url_for('project', project_id=project.id) }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-primary-700 bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150 hover:shadow-sm">
+                        View Project
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Enhanced Create Project Modal -->
+<div id="createProjectModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <!-- Modal header with gradient -->
+        <div class="relative pb-6 mb-6">
+            <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary-500 to-primary-300 rounded-t"></div>
+            <div class="flex justify-between items-center">
+                <h3 class="text-2xl font-bold text-gray-900">Create New Project</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-500 focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <form action="{{ url_for('create_project') }}" method="POST" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+            <!-- Project Name (Required) -->
+            <div class="form-group">
+                <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1">
+                    Project Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="project_name" name="project_name" required
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+            </div>
+
+            <!-- Date -->
+            <div class="form-group">
+                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <input type="date" id="date" name="date" 
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <!-- Address with Autocomplete -->
+            <div class="form-group relative">
+                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="address" name="address"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors"
+                        placeholder="Start typing to search for an address...">
+                </div>
+                <div id="address-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden mt-1 max-h-60 overflow-y-auto"></div>
+            </div>
+
+            <!-- Attention To -->
+            <div class="form-group">
+                <label for="attn" class="block text-sm font-medium text-gray-700 mb-1">Attention To</label>
+                <input type="text" id="attn" name="attn"
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+            </div>
+
+            <!-- Contractor Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="contractor_name" class="block text-sm font-medium text-gray-700 mb-1">Contractor Name</label>
+                    <input type="text" id="contractor_name" name="contractor_name"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+                <div class="form-group">
+                    <label for="contractor_email" class="block text-sm font-medium text-gray-700 mb-1">Contractor Email</label>
+                    <input type="email" id="contractor_email" name="contractor_email"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <!-- Job Contact Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="job_contact" class="block text-sm font-medium text-gray-700 mb-1">Job Contact</label>
+                    <input type="text" id="job_contact" name="job_contact"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+                <div class="form-group">
+                    <label for="job_contact_phone" class="block text-sm font-medium text-gray-700 mb-1">Job Contact Phone</label>
+                    <input type="tel" id="job_contact_phone" name="job_contact_phone"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="btn-primary w-full px-6 py-3 bg-primary-600 text-white text-base font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Create Project
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to get CSRF token from meta tag
+    function getCSRFToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply staggered animation to project cards
+        const animatedElements = document.querySelectorAll('.staggered-animation > *');
+        animatedElements.forEach((element, index) => {
+            setTimeout(() => {
+                element.style.opacity = '1';
+                element.style.transform = 'translateY(0)';
+                element.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+            }, 100 + (index * 100));
+        });
+
+        // Make sure Alpine.js is properly initialized
+        if (typeof Alpine !== 'undefined') {
+            // Initialize Alpine.js if it hasn't been already
+            if (!window.alpineInitialized) {
+                Alpine.start();
+                window.alpineInitialized = true;
+            }
+        } else {
+            console.error('Alpine.js is not loaded properly');
+        }
+
+        // Ensure all dropdown menus are hidden by default
+        document.querySelectorAll('.dropdown-menu').forEach(dropdown => {
+            dropdown.classList.remove('active');
+        });
+
+        // Setup dropdown toggle functionality
+        const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+        dropdownToggles.forEach(toggle => {
+            toggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const container = this.closest('.dropdown-container');
+                const menu = container.querySelector('.dropdown-menu');
+                
+                // Close all other dropdowns first
+                document.querySelectorAll('.dropdown-menu').forEach(otherMenu => {
+                    if (otherMenu !== menu) {
+                        otherMenu.classList.remove('active');
+                    }
+                });
+                
+                // Toggle this dropdown
+                menu.classList.toggle('active');
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown-container')) {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                    menu.classList.remove('active');
+                });
+            }
+        });
+
+        const addressInput = document.getElementById('address');
+        const suggestionsContainer = document.getElementById('address-suggestions');
+        const createProjectBtn = document.getElementById('createProjectBtn');
+        const emptyStateCreateBtn = document.getElementById('emptyStateCreateBtn');
+        const createProjectModal = document.getElementById('createProjectModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const dateInput = document.getElementById('date');
+        const projectForm = document.querySelector('#createProjectModal form');
+        let debounceTimer;
+
+        // Set default date to today
+        function setDefaultDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${year}-${month}-${day}`;
+        }
+
+        // Enhanced modal functionality with animation
+        function showModal() {
+            createProjectModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling when modal is open
+            
+            // Animate modal entry
+            setTimeout(() => {
+                const modalContent = createProjectModal.querySelector('div');
+                modalContent.classList.add('fade-in-up');
+            }, 10);
+            
+            // Set default date when modal opens
+            setDefaultDate();
+            
+            // Focus on the project name input after a short delay
+            setTimeout(() => {
+                document.getElementById('project_name').focus();
+            }, 100);
+        }
+
+        function hideModal() {
+            // Animate modal exit
+            const modalContent = createProjectModal.querySelector('div');
+            modalContent.style.opacity = '0';
+            modalContent.style.transform = 'translateY(10px)';
+            modalContent.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+            
+            // Hide modal after animation completes
+            setTimeout(() => {
+                createProjectModal.classList.add('hidden');
+                document.body.style.overflow = ''; // Restore scrolling
+                // Reset form
+                document.querySelector('form').reset();
+                // Reset modal content styles
+                modalContent.style.opacity = '';
+                modalContent.style.transform = '';
+                modalContent.style.transition = '';
+                modalContent.classList.remove('fade-in-up');
+            }, 200);
+        }
+
+        createProjectBtn?.addEventListener('click', showModal);
+        emptyStateCreateBtn?.addEventListener('click', showModal);
+        closeModalBtn?.addEventListener('click', hideModal);
+
+        // Close modal when clicking outside
+        createProjectModal?.addEventListener('click', (e) => {
+            if (e.target === createProjectModal) {
+                hideModal();
+            }
+        });
+
+        // Escape key to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !createProjectModal.classList.contains('hidden')) {
+                hideModal();
+            }
+        });
+
+        // Handle form submission
+        if (projectForm) {
+            projectForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                
+                // Show loading state on button
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalBtnContent = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creating...
+                `;
+                
+                // Submit the form using fetch
+                console.log('Submitting form to:', this.action);
+                const formData = new FormData(this);
+                
+                // Log form data for debugging
+                for (let [key, value] of formData.entries()) {
+                    console.log(`${key}: ${value}`);
+                }
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.success) {
+                        // Redirect to the project page
+                        window.location.href = data.redirect;
+                    } else {
+                        // Show error message
+                        alert(data.error || 'An error occurred while creating the project.');
+                        
+                        // Reset button state
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnContent;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Reset button state
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnContent;
+                    
+                    // Show error message
+                    alert('An error occurred while creating the project. Please try again.');
+                });
+            });
+        }
+
+        // Address autocomplete
+        addressInput?.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            if (this.value.length < 3) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                const url = `/api/places/autocomplete?input=${encodeURIComponent(this.value)}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        suggestionsContainer.innerHTML = '';
+                        if (data.predictions && data.predictions.length > 0) {
+                            data.predictions.forEach(prediction => {
+                                const div = document.createElement('div');
+                                div.className = 'p-3 hover:bg-gray-50 cursor-pointer text-sm';
+                                div.textContent = prediction.description;
+                                div.addEventListener('click', () => {
+                                    addressInput.value = prediction.description;
+                                    suggestionsContainer.classList.add('hidden');
+                                });
+                                suggestionsContainer.appendChild(div);
+                            });
+                            suggestionsContainer.classList.remove('hidden');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching address suggestions:', error);
+                    });
+            }, 300);
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (addressInput && !addressInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+    });
+</script>
+{% endblock %} 

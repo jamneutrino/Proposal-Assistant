@@ -1,164 +1,542 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ project.name }} - Project Manager</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
-</head>
-<body class="bg-gray-50">
-    <div class="max-w-5xl mx-auto px-4 py-8">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold text-gray-800">{{ project.name }}</h2>
-            <div class="flex gap-3">
-                <button id="generateWordBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    Generate Word
-                </button>
-                <a href="{{ url_for('index') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                    Back to Projects
-                </a>
-            </div>
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block nav_home %}text-gray-900 border-b-2 border-primary-500{% endblock %}
+{% block mobile_nav_home %}text-primary-700 bg-primary-50 border-l-4 border-primary-500{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex justify-between items-start">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">{{ project.name }}</h1>
+            {% if project.address %}
+            <p class="mt-1 text-gray-600">{{ project.address }}</p>
+            {% endif %}
         </div>
-        
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-            <div class="p-6">
-                <form id="itemForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                        <label for="itemSelect" class="block text-sm font-medium text-gray-700 mb-1">Select Item</label>
-                        <select class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="itemSelect" required>
-                            <option value="">Choose...</option>
-                            {% for item in items %}
-                            <option value="{{ item }}">{{ item }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                        <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="quantity" min="1" value="1" required>
-                    </div>
-                    <div>
-                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                        <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="price" min="0.01" step="0.01" required>
-                    </div>
-                    <div class="flex items-end gap-2">
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Add Item</button>
-                        <button type="button" id="questionsBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Questions</button>
-                    </div>
-                </form>
+        <div class="flex gap-4">
+            <button id="editProjectBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Project
+            </button>
+            <button id="generateWordBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150">
+                Generate Word
+            </button>
+            <a href="{{ url_for('index') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-150">
+                Back to Projects
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Project Details Section -->
+<div class="bg-white rounded-xl shadow-soft border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-50">
+        <h2 class="text-lg font-semibold text-gray-900">Project Details</h2>
+    </div>
+    <div class="p-3">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            {% if project.date %}
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <p class="text-xs font-medium text-gray-500">Date</p>
+                <p class="text-gray-900">{{ project.date }}</p>
             </div>
+            {% endif %}
+            {% if project.attn %}
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <p class="text-xs font-medium text-gray-500">Attention To</p>
+                <p class="text-gray-900">{{ project.attn }}</p>
+            </div>
+            {% endif %}
         </div>
 
-        <!-- Questions Modal -->
-        <div class="fixed inset-0 bg-black bg-opacity-50 hidden" id="questionsModal" aria-hidden="true">
-            <div class="fixed inset-0 flex items-center justify-center p-4">
-                <div class="bg-white rounded-xl shadow-lg max-w-md w-full">
-                    <div class="flex justify-between items-center p-6 border-b border-gray-200">
-                        <h5 class="text-xl font-semibold text-gray-800">Item Questions</h5>
-                        <button type="button" class="text-gray-400 hover:text-gray-500" data-bs-dismiss="modal">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="p-6">
-                        <div id="questionContainer">
-                            <!-- Questions will be dynamically added here -->
-                        </div>
-                        <div id="answersReview" class="hidden">
-                            <h6 class="text-lg font-medium text-gray-800 mb-4">Your Answers:</h6>
-                            <div id="answersContainer" class="space-y-3"></div>
-                            <div class="flex gap-3 mt-6">
-                                <button type="button" id="editAnswersBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Edit Answers</button>
-                                <button type="button" id="saveAnswersBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Save</button>
-                            </div>
-                        </div>
-                    </div>
+        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% if project.contractor_name or project.contractor_email %}
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <h3 class="text-xs font-medium text-gray-500 mb-2">Contractor Information</h3>
+                {% if project.contractor_name %}
+                <div class="mb-1">
+                    <p class="text-xs text-gray-500">Name</p>
+                    <p class="text-gray-900">{{ project.contractor_name }}</p>
                 </div>
+                {% endif %}
+                {% if project.contractor_email %}
+                <div>
+                    <p class="text-xs text-gray-500">Email</p>
+                    <p class="text-gray-900">{{ project.contractor_email }}</p>
+                </div>
+                {% endif %}
             </div>
-        </div>
+            {% endif %}
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Translated to Words</h3>
-            <p id="translationText" class="text-gray-600 whitespace-pre-line">{{ translation }}</p>
+            {% if project.job_contact or project.job_contact_phone %}
+            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                <h3 class="text-xs font-medium text-gray-500 mb-2">Job Contact Information</h3>
+                {% if project.job_contact %}
+                <div class="mb-1">
+                    <p class="text-xs text-gray-500">Name</p>
+                    <p class="text-gray-900">{{ project.job_contact }}</p>
+                </div>
+                {% endif %}
+                {% if project.job_contact_phone %}
+                <div>
+                    <p class="text-xs text-gray-500">Phone</p>
+                    <p class="text-gray-900">{{ project.job_contact_phone }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
+    </div>
+</div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-semibold text-gray-800">Added Items</h3>
-                <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                    Clear All Items
+<!-- Add Items Section -->
+<div class="bg-white rounded-xl shadow-soft border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-50">
+        <h2 class="text-lg font-semibold text-gray-900">Add Items</h2>
+    </div>
+    <div class="p-3">
+        <form id="itemForm" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+                <label for="itemSelect" class="block text-xs font-medium text-gray-500 mb-1">Select Item</label>
+                <select class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm" id="itemSelect" required>
+                    <option value="">Choose...</option>
+                    {% for item in items %}
+                    <option value="{{ item.name }}">{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="quantity" class="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
+                <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm" id="quantity" min="1" value="1" required>
+            </div>
+            <div>
+                <label for="price" class="block text-xs font-medium text-gray-500 mb-1">Price</label>
+                <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm" id="price" min="0.01" step="0.01" required>
+            </div>
+            <div class="flex items-end gap-2">
+                <button type="submit" class="flex-1 px-3 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150">Add Item</button>
+                <button type="button" id="questionsBtn" class="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">Questions</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Translation Section -->
+<div class="bg-white rounded-xl shadow-soft border border-gray-200 mb-6">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-50">
+        <h2 class="text-lg font-semibold text-gray-900">Translated to Words</h2>
+    </div>
+    <div class="p-3">
+        <p id="translationText" class="text-sm text-gray-600 whitespace-pre-line">{{ translation }}</p>
+    </div>
+</div>
+
+<!-- Added Items Section -->
+<div class="bg-white rounded-xl shadow-soft border border-gray-200">
+    <div class="border-b border-gray-200 px-4 py-2 bg-gray-50 flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-gray-900">Added Items</h2>
+        <button id="clearButton" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-150">
+            Clear All Items
+        </button>
+    </div>
+    <div class="p-3">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Item</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Quantity</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Price</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-500">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsTable" class="divide-y divide-gray-200">
+                    {% for item in project.items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-2 px-3 text-sm text-gray-900">{{ item.name }}</td>
+                        <td class="py-2 px-3 text-sm text-gray-900">{{ item.quantity }}</td>
+                        <td class="py-2 px-3 text-sm text-gray-900">${{ "%.2f"|format(item.price) }}</td>
+                        <td class="py-2 px-3 text-sm text-gray-900">${{ "%.2f"|format(item.quantity * item.price) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3 text-right">
+            <span id="totalAmount" class="text-base font-semibold text-gray-800">
+                Total: ${{ "%.2f"|format(project.items|sum(attribute='price')|float * project.items|sum(attribute='quantity')|float) }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Questions Modal -->
+<div id="questionsModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-900">Questions</h3>
+            <button id="closeModalBtn" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div id="questionContainer" class="mb-6">
+            <!-- Questions will be dynamically inserted here -->
+        </div>
+        <div id="answersReview" class="hidden">
+            <h4 class="text-xl font-semibold mb-4">Review Your Answers:</h4>
+            <div id="answersList" class="mb-6 text-lg">
+                <!-- Answers will be dynamically inserted here -->
+            </div>
+            <div class="flex justify-end gap-4">
+                <button id="editAnswersBtn" class="px-6 py-3 text-lg text-gray-600 hover:text-gray-800 transition-colors">
+                    Edit Answers
                 </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead>
-                        <tr class="border-b border-gray-200">
-                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Item</th>
-                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Quantity</th>
-                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Price</th>
-                            <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsTable" class="divide-y divide-gray-200">
-                        {% for item in project.items %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="py-3 px-4 text-sm text-gray-800">{{ item.name }}</td>
-                            <td class="py-3 px-4 text-sm text-gray-800">{{ item.quantity }}</td>
-                            <td class="py-3 px-4 text-sm text-gray-800">${{ "%.2f"|format(item.price) }}</td>
-                            <td class="py-3 px-4 text-sm text-gray-800">${{ "%.2f"|format(item.quantity * item.price) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-6 text-right">
-                <span id="totalAmount" class="text-lg font-semibold text-gray-800">
-                    Total: ${{ "%.2f"|format(project.items|sum(attribute='price')|float * project.items|sum(attribute='quantity')|float) }}
-                </span>
+                <button id="saveAnswersBtn" class="px-6 py-3 text-lg bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150">
+                    Save Answers
+                </button>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
+<style>
+    /* Toast notification component */
+    #toast-notification {
+        position: fixed;
+        top: 4rem;
+        right: 1rem;
+        z-index: 50;
+        max-width: 20rem;
+        padding: 1rem;
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        transform: translateY(-100vh);
+        transition: transform 0.3s ease-out;
+    }
+
+    #toast-notification.translate-y-0 {
+        transform: translateY(0);
+    }
+
+    #toast-notification .flex-shrink-0 {
+        flex-shrink: 0;
+        margin-right: 0.75rem;
+    }
+
+    #toast-notification .flex-shrink-0 svg {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    #toast-notification .ml-3 {
+        margin-left: 0.75rem;
+    }
+
+    #toast-notification .text-sm {
+        font-size: 0.875rem;
+    }
+
+    #toast-notification .text-gray-500 {
+        color: #6b7280;
+    }
+
+    #toast-notification .text-green-500 {
+        color: #15803d;
+    }
+
+    #toast-notification .text-red-500 {
+        color: #b91c1c;
+    }
+
+    #toast-notification .bg-green-50 {
+        background-color: #f0fdf4;
+    }
+
+    #toast-notification .bg-red-50 {
+        background-color: #fef2f2;
+    }
+
+    #toast-notification .border-green-500 {
+        border-color: #15803d;
+    }
+
+    #toast-notification .border-red-500 {
+        border-color: #b91c1c;
+    }
+
+    #toast-notification .close-toast {
+        margin-left: auto;
+        margin-right: -0.75rem;
+        margin-top: -0.75rem;
+        padding: 0.75rem;
+        background-color: transparent;
+        border: none;
+        cursor: pointer;
+    }
+
+    #toast-notification .close-toast svg {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+</style>
+
+<!-- Toast notification component -->
+<div id="toast-notification" class="fixed top-4 right-4 z-50 max-w-md p-4 bg-white rounded-lg shadow-lg border border-gray-200 transform transition-transform duration-300 translate-y-[-100vh]">
+    <div class="flex items-center">
+        <div class="flex-shrink-0 mr-3">
+            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        <div class="ml-3 text-sm font-normal" id="toast-message">Document generated successfully</div>
+        <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg p-1.5 inline-flex h-8 w-8" id="close-toast">
+            <span class="sr-only">Close</span>
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+            </svg>
+        </button>
+    </div>
+    <div class="mt-2 text-sm text-gray-500" id="toast-description">The download should start automatically.</div>
+</div>
+
+<!-- Flash Messages Handler -->
+{% if flash_messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function showToast(message, description, type = 'success') {
+            const toast = document.getElementById('toast-notification');
+            const toastMessage = document.getElementById('toast-message');
+            const toastDescription = document.getElementById('toast-description');
+            const iconContainer = toast.querySelector('.flex-shrink-0');
+            
+            // Set message and description
+            toastMessage.textContent = message;
+            toastDescription.textContent = description;
+            
+            // Set icon based on type
+            if (type === 'success') {
+                iconContainer.innerHTML = '<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                toast.classList.remove('border-red-500', 'bg-red-50');
+                toast.classList.add('border-green-500', 'bg-green-50');
+            } else {
+                iconContainer.innerHTML = '<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                toast.classList.remove('border-green-500', 'bg-green-50');
+                toast.classList.add('border-red-500', 'bg-red-50');
+            }
+            
+            // Show toast
+            toast.classList.remove('translate-y-[-100vh]');
+            toast.classList.add('translate-y-0');
+            
+            // Auto-hide after 5 seconds
+            const hideTimeout = setTimeout(() => {
+                hideToast();
+            }, 5000);
+            
+            // Setup close button
+            document.getElementById('close-toast').onclick = () => {
+                clearTimeout(hideTimeout);
+                hideToast();
+            };
+        }
+        
+        function hideToast() {
+            const toast = document.getElementById('toast-notification');
+            toast.classList.remove('translate-y-0');
+            toast.classList.add('translate-y-[-100vh]');
+        }
+        
+        {% for message in flash_messages %}
+            showToast(
+                "{{ message.message }}", 
+                "{{ 'Changes have been saved successfully.' if message.category == 'success' else '' }}", 
+                "{{ message.category }}"
+            );
+        {% endfor %}
+    });
+</script>
+{% endif %}
+
+<!-- Edit Project Modal -->
+<div id="editProjectModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-900">Edit Project</h3>
+            <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <form action="{{ url_for('update_project', project_id=project.id) }}" method="POST" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+            <!-- Project Name (Required) -->
+            <div class="form-group">
+                <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1">
+                    Project Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="project_name" name="project_name" required value="{{ project.name }}"
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+            </div>
+
+            <!-- Date -->
+            <div class="form-group">
+                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <input type="date" id="date" name="date" value="{{ project.date|format_date_for_input if project.date else '' }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <!-- Address with Autocomplete -->
+            <div class="form-group relative">
+                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="edit_address" name="address" value="{{ project.address }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors"
+                        placeholder="Start typing to search for an address...">
+                </div>
+                <div id="edit-address-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden mt-1 max-h-60 overflow-y-auto"></div>
+            </div>
+
+            <!-- Attention To -->
+            <div class="form-group">
+                <label for="attn" class="block text-sm font-medium text-gray-700 mb-1">Attention To</label>
+                <input type="text" id="attn" name="attn" value="{{ project.attn }}"
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+            </div>
+
+            <!-- Contractor Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="contractor_name" class="block text-sm font-medium text-gray-700 mb-1">Contractor Name</label>
+                    <input type="text" id="contractor_name" name="contractor_name" value="{{ project.contractor_name }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+                <div class="form-group">
+                    <label for="contractor_email" class="block text-sm font-medium text-gray-700 mb-1">Contractor Email</label>
+                    <input type="email" id="contractor_email" name="contractor_email" value="{{ project.contractor_email }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <!-- Job Contact Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="job_contact" class="block text-sm font-medium text-gray-700 mb-1">Job Contact</label>
+                    <input type="text" id="job_contact" name="job_contact" value="{{ project.job_contact }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+                <div class="form-group">
+                    <label for="job_contact_phone" class="block text-sm font-medium text-gray-700 mb-1">Job Contact Phone</label>
+                    <input type="tel" id="job_contact_phone" name="job_contact_phone" value="{{ project.job_contact_phone }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="w-full px-6 py-3 bg-primary-600 text-white text-base font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to get CSRF token from meta tag
+    function getCSRFToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Display flash messages if any
+        {% if flash_messages %}
+            {% for message in flash_messages %}
+                showToast(
+                    "{{ message.message }}", 
+                    "{{ 'Changes have been saved successfully.' if message.category == 'success' else '' }}", 
+                    "{{ message.category }}"
+                );
+            {% endfor %}
+        {% endif %}
+        
         const itemSelect = document.getElementById('itemSelect');
         const priceInput = document.getElementById('price');
         const generateWordBtn = document.getElementById('generateWordBtn');
         const questionsBtn = document.getElementById('questionsBtn');
         const questionsModal = document.getElementById('questionsModal');
+        const editProjectBtn = document.getElementById('editProjectBtn');
+        const editProjectModal = document.getElementById('editProjectModal');
+        const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+        const editAddressInput = document.getElementById('edit_address');
+        const editAddressSuggestions = document.getElementById('edit-address-suggestions');
+        
+        console.log("Questions button:", questionsBtn);
+        console.log("Questions modal:", questionsModal);
         
         // Initialize price cache
-        const priceCache = {{ price_cache|tojson|safe }};
-
-        // Generate Word document
-        generateWordBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/generate_word/{{ project.id }}', {
-                    method: 'POST'
-                });
+        let priceCache = {};
+        try {
+            priceCache = JSON.parse('{{ price_cache|tojson|safe }}');
+            console.log("Price cache loaded");
+        } catch (e) {
+            console.error("Error parsing price cache:", e);
+            priceCache = {};
+        }
+        
+        // Make these variables accessible globally
+        window.currentItemIndex = 0;
+        window.itemAnswers = {};
+        let availableItems = [];
+        
+        // Use a more direct approach to get the items
+        if (itemSelect) {
+            // Extract items from the dropdown
+            availableItems = Array.from(itemSelect.options)
+                .filter(option => option.value && option.value !== "Choose...")
+                .map(option => ({
+                    name: option.text,
+                    value: option.value,
+                    image_path: null // We'll fetch image paths separately
+                }));
+            console.log("Items extracted from dropdown:", availableItems.length);
+            if (availableItems.length > 0) {
+                console.log("First item:", availableItems[0]);
                 
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = '{{ project.name }}_proposal.docx';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                } else {
-                    const errorData = await response.json();
-                    console.error('Server error:', errorData.error);
-                    alert('Failed to generate Word document: ' + errorData.error);
-                }
-            } catch (error) {
-                console.error('Error generating Word document:', error);
-                alert('Error generating Word document: ' + error.message);
+                // Try to fetch item images for display in questions
+                fetchItemImages();
+            } else {
+                console.warn("No items found in dropdown");
             }
-        });
+        } else {
+            console.error("Item select dropdown not found");
+        }
+        
+        window.priceCache = priceCache;
 
         // Function to update price when item is selected
         itemSelect.addEventListener('change', async () => {
@@ -192,7 +570,8 @@
             const response = await fetch('/add_item/{{ project.id }}', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
                 },
                 body: JSON.stringify({ item, quantity, price })
             });
@@ -210,7 +589,8 @@
                 const response = await fetch('/clear_items/{{ project.id }}', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
                     }
                 });
 
@@ -221,6 +601,118 @@
                 }
             }
         });
+
+        generateWordBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(`/generate_word/{{ project.id }}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken()
+                    }
+                });
+                
+                if (response.ok) {
+                    // Get the filename from the Content-Disposition header
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : '{{ project.name }}.docx';
+                    
+                    // Convert the response to a blob
+                    const blob = await response.blob();
+                    
+                    // Create a link to download the file
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                    
+                    // Show toast notification instead of alert
+                    showToast('Document generated successfully', 'The download should start automatically.', 'success');
+                } else {
+                    const data = await response.json();
+                    showToast('Failed to generate document', data.error || 'Unknown error', 'error');
+                }
+            } catch (error) {
+                showToast('Error generating document', error.message, 'error');
+            }
+        });
+
+        // Edit Project Modal functionality
+        if (editProjectBtn) {
+            editProjectBtn.addEventListener('click', function() {
+                if (editProjectModal) {
+                    editProjectModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        }
+        
+        if (closeEditModalBtn) {
+            closeEditModalBtn.addEventListener('click', function() {
+                if (editProjectModal) {
+                    editProjectModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Close edit modal when clicking outside
+        if (editProjectModal) {
+            editProjectModal.addEventListener('click', function(e) {
+                if (e.target === editProjectModal) {
+                    editProjectModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Address autocomplete for edit modal
+        let editDebounceTimer;
+        if (editAddressInput) {
+            editAddressInput.addEventListener('input', function() {
+                clearTimeout(editDebounceTimer);
+                if (this.value.length < 3) {
+                    editAddressSuggestions.classList.add('hidden');
+                    return;
+                }
+
+                editDebounceTimer = setTimeout(() => {
+                    const url = `/api/places/autocomplete?input=${encodeURIComponent(this.value)}`;
+
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            editAddressSuggestions.innerHTML = '';
+                            if (data.predictions && data.predictions.length > 0) {
+                                data.predictions.forEach(prediction => {
+                                    const div = document.createElement('div');
+                                    div.className = 'p-3 hover:bg-gray-50 cursor-pointer text-sm';
+                                    div.textContent = prediction.description;
+                                    div.addEventListener('click', () => {
+                                        editAddressInput.value = prediction.description;
+                                        editAddressSuggestions.classList.add('hidden');
+                                    });
+                                    editAddressSuggestions.appendChild(div);
+                                });
+                                editAddressSuggestions.classList.remove('hidden');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching address suggestions:', error);
+                        });
+                }, 300);
+            });
+            
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (e.target !== editAddressInput && e.target !== editAddressSuggestions) {
+                    editAddressSuggestions.classList.add('hidden');
+                }
+            });
+        }
 
         function updateTable(items) {
             const tbody = document.getElementById('itemsTable');
@@ -249,146 +741,345 @@
             document.getElementById('translationText').textContent = translation;
         }
 
-        // Modal functionality
-        function showModal() {
-            questionsModal.classList.remove('hidden');
-        }
-
-        function hideModal() {
-            questionsModal.classList.add('hidden');
-        }
-
-        // Close modal when clicking outside or on close button
-        questionsModal.addEventListener('click', (e) => {
-            if (e.target === questionsModal) {
-                hideModal();
-            }
-        });
-
-        document.querySelector('[data-bs-dismiss="modal"]').addEventListener('click', hideModal);
-
-        // Questions functionality
-        let currentItemIndex = 0;
-        let itemAnswers = {};
-        const availableItems = {{ items|tojson|safe }};
-
-        questionsBtn.addEventListener('click', () => {
-            currentItemIndex = 0;
-            itemAnswers = {};
-            showNextQuestion();
-            showModal();
-        });
-
-        function showNextQuestion() {
-            const questionContainer = document.getElementById('questionContainer');
-            const answersReview = document.getElementById('answersReview');
-            
-            if (currentItemIndex < availableItems.length) {
-                const currentItem = availableItems[currentItemIndex];
-                questionContainer.style.display = 'block';
-                answersReview.style.display = 'none';
-                
-                questionContainer.innerHTML = `
-                    <p class="text-lg text-gray-800 mb-4">How many of ${currentItem}?</p>
-                    <div class="mb-6">
-                        <input type="number" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" id="itemQuantity" min="0" value="0">
-                    </div>
-                    <div class="flex gap-3">
-                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors" id="skipBtn">Skip</button>
-                        <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" id="nextBtn">Next</button>
-                    </div>
-                `;
-
-                document.getElementById('skipBtn').addEventListener('click', () => {
-                    currentItemIndex++;
+        // Questions modal functionality
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        
+        // Log elements to debug
+        console.log("Questions button:", questionsBtn);
+        console.log("Questions modal:", questionsModal);
+        console.log("Close modal button:", closeModalBtn);
+        
+        if (questionsBtn) {
+            questionsBtn.addEventListener('click', function() {
+                console.log("Questions button clicked");
+                if (questionsModal) {
+                    questionsModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    
+                    // Reset questions state
+                    currentItemIndex = 0;
+                    itemAnswers = {};
                     showNextQuestion();
-                });
-
-                document.getElementById('nextBtn').addEventListener('click', () => {
-                    const quantity = parseInt(document.getElementById('itemQuantity').value);
-                    if (quantity > 0) {
-                        itemAnswers[currentItem] = quantity;
-                    }
-                    currentItemIndex++;
-                    showNextQuestion();
-                });
-            } else {
-                showAnswersReview();
-            }
-        }
-
-        function showAnswersReview() {
-            const questionContainer = document.getElementById('questionContainer');
-            const answersReview = document.getElementById('answersReview');
-            const answersContainer = document.getElementById('answersContainer');
-            
-            questionContainer.style.display = 'none';
-            answersReview.style.display = 'block';
-            
-            answersContainer.innerHTML = '';
-            for (const [item, quantity] of Object.entries(itemAnswers)) {
-                answersContainer.innerHTML += `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div>
-                            <span class="font-medium text-gray-800">${item}:</span>
-                            <span class="text-gray-600">${quantity}</span>
-                        </div>
-                        <button type="button" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors edit-answer" data-item="${item}">
-                            Edit
-                        </button>
-                    </div>
-                `;
-            }
-
-            // Edit button handlers
-            document.querySelectorAll('.edit-answer').forEach(button => {
-                button.addEventListener('click', () => {
-                    const item = button.dataset.item;
-                    const quantity = itemAnswers[item];
-                    const newQuantity = prompt(`Enter new quantity for ${item}:`, quantity);
-                    if (newQuantity !== null) {
-                        const parsedQuantity = parseInt(newQuantity);
-                        if (!isNaN(parsedQuantity) && parsedQuantity >= 0) {
-                            itemAnswers[item] = parsedQuantity;
-                            showAnswersReview();
-                        }
-                    }
-                });
+                } else {
+                    console.error("Modal element not found");
+                }
             });
-
-            // Save button handler
-            document.getElementById('saveAnswersBtn').addEventListener('click', async () => {
-                for (const [item, quantity] of Object.entries(itemAnswers)) {
+        }
+        
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function() {
+                console.log("Close button clicked");
+                if (questionsModal) {
+                    questionsModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Click outside to close
+        if (questionsModal) {
+            questionsModal.addEventListener('click', function(e) {
+                if (e.target === questionsModal) {
+                    questionsModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Save and edit buttons
+        const saveAnswersBtn = document.getElementById('saveAnswersBtn');
+        const editAnswersBtn = document.getElementById('editAnswersBtn');
+        
+        if (saveAnswersBtn) {
+            saveAnswersBtn.addEventListener('click', async function() {
+                if (questionsModal) {
+                    questionsModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+                
+                // Add each item with quantity > 0
+                for (const [itemValue, quantity] of Object.entries(itemAnswers)) {
                     if (quantity > 0) {
                         // Get price from cache or server
-                        let price = priceCache[item] || 0;
+                        let price = priceCache[itemValue] || 0;
                         if (!price) {
-                            const response = await fetch(`/get_price/${encodeURIComponent(item)}`);
+                            const response = await fetch(`/get_price/${encodeURIComponent(itemValue)}`);
                             const data = await response.json();
                             price = data.price || 0;
                         }
-
+                        
                         // Add item to project
-                        await fetch('/add_item/{{ project.id }}', {
+                        const response = await fetch('/add_item/{{ project.id }}', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCSRFToken()
                             },
-                            body: JSON.stringify({ item, quantity, price })
+                            body: JSON.stringify({ item: itemValue, quantity, price })
                         });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            updateTable(data.items);
+                            updateTranslation(data.translation);
+                        }
                     }
                 }
-                
-                // Refresh the page to show updated items
-                location.reload();
             });
-
-            // Edit answers button handler
-            document.getElementById('editAnswersBtn').addEventListener('click', () => {
+        }
+        
+        if (editAnswersBtn) {
+            editAnswersBtn.addEventListener('click', function() {
                 currentItemIndex = 0;
                 showNextQuestion();
             });
         }
-    </script>
-</body>
-</html> 
+        
+        // Questions functionality
+        let currentItemIndex = 0;
+        let itemAnswers = {};
+        
+        function showNextQuestion() {
+            console.log("showNextQuestion called, currentItemIndex:", currentItemIndex, "availableItems.length:", availableItems.length);
+            const questionContainer = document.getElementById('questionContainer');
+            const answersReview = document.getElementById('answersReview');
+            
+            if (!questionContainer || !answersReview) {
+                console.error("Required elements not found");
+                return;
+            }
+            
+            // Add extra check for empty items array
+            if (availableItems.length === 0) {
+                console.error("No items available to show questions for");
+                // Show a message in the question container
+                questionContainer.innerHTML = `
+                    <div class="text-center p-8">
+                        <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h3 class="text-xl font-medium text-gray-900 mb-2">No Items Available</h3>
+                        <p class="text-gray-500 mb-5">There are no items available to add to your project.</p>
+                        <button id="closeQuestionsBtn" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                            Close
+                        </button>
+                    </div>
+                `;
+                questionContainer.querySelector('#closeQuestionsBtn').addEventListener('click', function() {
+                    if (questionsModal) {
+                        questionsModal.classList.add('hidden');
+                        document.body.style.overflow = '';
+                    }
+                });
+                return;
+            }
+            
+            if (currentItemIndex < availableItems.length) {
+                const currentItem = availableItems[currentItemIndex];
+                console.log("Current item:", currentItem);
+                const itemPrice = priceCache[currentItem.value] || 0;
+                answersReview.classList.add('hidden');
+                questionContainer.classList.remove('hidden');
+                
+                questionContainer.innerHTML = `
+                    <div class="text-center">
+                        <p class="text-3xl font-bold mb-4">${currentItem.name}</p>
+                        <p class="text-xl mb-4 text-gray-600">Price: $${itemPrice.toFixed(2)}</p>
+                        ${currentItem.image_path ? `
+                            <div class="mb-8">
+                                <img src="${currentItem.image_path}" alt="${currentItem.name}" class="mx-auto max-h-64 w-auto">
+                            </div>
+                        ` : '<div class="mb-8"></div>'}
+                        <div class="flex justify-center gap-16">
+                            <button type="button" class="no-btn px-12 py-4 text-xl font-semibold bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                                No
+                            </button>
+                            <div class="flex items-center gap-4">
+                                <div class="flex items-center">
+                                    <button type="button" class="decrement-btn px-4 py-4 text-xl font-semibold bg-primary-100 text-primary-600 rounded-l-lg hover:bg-primary-200 transition-colors border-2 border-r-0 border-primary-300">
+                                        −
+                                    </button>
+                                    <input type="number" min="1" value="1" 
+                                        class="quantity-input w-20 h-16 text-2xl font-bold text-center border-2 border-primary-300 focus:border-primary-500 focus:ring-primary-500"
+                                        style="-moz-appearance: textfield; appearance: textfield;"
+                                        oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                    <button type="button" class="increment-btn px-4 py-4 text-xl font-semibold bg-primary-100 text-primary-600 rounded-r-lg hover:bg-primary-200 transition-colors border-2 border-l-0 border-primary-300">
+                                        +
+                                    </button>
+                                </div>
+                                <button type="button" class="yes-btn px-12 py-4 text-xl font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                                    Yes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add event listeners for the dynamically created buttons
+                questionContainer.querySelector('.no-btn').addEventListener('click', function() {
+                    answerQuestion(0);
+                });
+                
+                questionContainer.querySelector('.yes-btn').addEventListener('click', function() {
+                    const input = questionContainer.querySelector('.quantity-input');
+                    const quantity = parseInt(input.value) || 0;
+                    answerQuestion(quantity);
+                });
+                
+                questionContainer.querySelector('.increment-btn').addEventListener('click', function() {
+                    const input = questionContainer.querySelector('.quantity-input');
+                    const currentValue = parseInt(input.value) || 0;
+                    input.value = currentValue + 1;
+                });
+                
+                questionContainer.querySelector('.decrement-btn').addEventListener('click', function() {
+                    const input = questionContainer.querySelector('.quantity-input');
+                    const currentValue = parseInt(input.value) || 2;
+                    if (currentValue > 1) {
+                        input.value = currentValue - 1;
+                    }
+                });
+                
+            } else {
+                // Show review screen
+                questionContainer.classList.add('hidden');
+                answersReview.classList.remove('hidden');
+                
+                const answersList = document.getElementById('answersList');
+                answersList.innerHTML = '';
+                
+                let hasAnswers = false;
+                for (const [itemValue, quantity] of Object.entries(itemAnswers)) {
+                    if (quantity > 0) {
+                        hasAnswers = true;
+                        const itemObj = availableItems.find(i => i.value === itemValue);
+                        const itemName = itemObj ? itemObj.name : itemValue;
+                        const itemPrice = priceCache[itemValue] || 0;
+                        const total = quantity * itemPrice;
+                        answersList.innerHTML += `
+                            <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                                <div class="flex items-center gap-4">
+                                    ${itemObj && itemObj.image_path ? `
+                                        <img src="${itemObj.image_path}" alt="${itemName}" class="h-12 w-auto">
+                                    ` : ''}
+                                    <span class="text-xl">${itemName}</span>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xl">Quantity: ${quantity}</div>
+                                    <div class="text-lg text-gray-600">Price: $${itemPrice.toFixed(2)}</div>
+                                    <div class="text-lg font-semibold">Total: $${total.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                if (!hasAnswers) {
+                    answersList.innerHTML = '<p class="text-gray-500">No items selected.</p>';
+                }
+            }
+        }
+        
+        function answerQuestion(quantity) {
+            const currentItem = availableItems[currentItemIndex];
+            itemAnswers[currentItem.value] = quantity;
+            currentItemIndex++;
+            showNextQuestion();
+        }
+
+        // Function to show toast notification
+        function showToast(message, description, type = 'success') {
+            const toast = document.getElementById('toast-notification');
+            const toastMessage = document.getElementById('toast-message');
+            const toastDescription = document.getElementById('toast-description');
+            const iconContainer = toast.querySelector('.flex-shrink-0');
+            
+            // Set message and description
+            toastMessage.textContent = message;
+            toastDescription.textContent = description;
+            
+            // Set icon based on type
+            if (type === 'success') {
+                iconContainer.innerHTML = '<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                toast.classList.remove('border-red-500', 'bg-red-50');
+                toast.classList.add('border-green-500', 'bg-green-50');
+            } else {
+                iconContainer.innerHTML = '<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                toast.classList.remove('border-green-500', 'bg-green-50');
+                toast.classList.add('border-red-500', 'bg-red-50');
+            }
+            
+            // Show toast
+            toast.classList.remove('translate-y-[-100vh]');
+            toast.classList.add('translate-y-0');
+            
+            // Auto-hide after 5 seconds
+            const hideTimeout = setTimeout(() => {
+                hideToast();
+            }, 5000);
+            
+            // Setup close button
+            document.getElementById('close-toast').onclick = () => {
+                clearTimeout(hideTimeout);
+                hideToast();
+            };
+        }
+        
+        function hideToast() {
+            const toast = document.getElementById('toast-notification');
+            toast.classList.remove('translate-y-0');
+            toast.classList.add('translate-y-[-100vh]');
+        }
+
+        // Function to fetch item images from server
+        async function fetchItemImages() {
+            try {
+                // Try to get the image paths for all items
+                const response = await fetch('/get_items_info');
+                const data = await response.json();
+                
+                if (data.items && Array.isArray(data.items)) {
+                    console.log("Fetched item info:", data.items.length);
+                    
+                    // Update our availableItems with image paths
+                    for (let i = 0; i < availableItems.length; i++) {
+                        const itemValue = availableItems[i].value;
+                        const serverItem = data.items.find(item => item.name === itemValue || item.value === itemValue);
+                        
+                        if (serverItem && serverItem.image_path) {
+                            availableItems[i].image_path = serverItem.image_path;
+                            console.log(`Added image path for ${availableItems[i].name}`);
+                        }
+                    }
+                } else {
+                    // If that endpoint doesn't exist, let's try an alternative approach
+                    console.warn("Could not fetch item images from server");
+                    
+                    // As an alternative, try to find images that might be embedded in the page
+                    // This is a fallback in case the server endpoint doesn't exist
+                    const itemImagesInPage = document.querySelectorAll('[data-item-image]');
+                    if (itemImagesInPage.length > 0) {
+                        console.log("Found item images in page:", itemImagesInPage.length);
+                        itemImagesInPage.forEach(imgElement => {
+                            const itemName = imgElement.getAttribute('data-item-name');
+                            const imagePath = imgElement.getAttribute('data-item-image');
+                            
+                            if (itemName && imagePath) {
+                                const itemToUpdate = availableItems.find(item => 
+                                    item.name === itemName || item.value === itemName);
+                                
+                                if (itemToUpdate) {
+                                    itemToUpdate.image_path = imagePath;
+                                    console.log(`Added image path for ${itemName} from page`);
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching item images:", error);
+            }
+        }
+    });
+</script>
+{% endblock %}

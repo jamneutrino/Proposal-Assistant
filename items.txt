@@ -1,0 +1,2 @@
+Curbs|/static/item_images\1740123993_curb.jpeg
+Pipes|/static/item_images\1740124120_pipe.png
