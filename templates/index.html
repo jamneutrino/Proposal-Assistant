@@ -259,20 +259,19 @@
             }
 
             debounceTimer = setTimeout(() => {
-                const apiKey = '{{ geoapify_api_key }}';
-                const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(this.value)}&format=json&apiKey=${apiKey}`;
+                const url = `/api/places/autocomplete?input=${encodeURIComponent(this.value)}`;
 
                 fetch(url)
                     .then(response => response.json())
                     .then(data => {
                         suggestionsContainer.innerHTML = '';
-                        if (data.results && data.results.length > 0) {
-                            data.results.forEach(result => {
+                        if (data.predictions && data.predictions.length > 0) {
+                            data.predictions.forEach(prediction => {
                                 const div = document.createElement('div');
                                 div.className = 'p-3 hover:bg-gray-50 cursor-pointer text-sm';
-                                div.textContent = result.formatted;
+                                div.textContent = prediction.description;
                                 div.addEventListener('click', () => {
-                                    addressInput.value = result.formatted;
+                                    addressInput.value = prediction.description;
                                     suggestionsContainer.classList.add('hidden');
                                 });
                                 suggestionsContainer.appendChild(div);

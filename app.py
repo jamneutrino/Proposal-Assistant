@@ -17,6 +17,7 @@ import os
 from werkzeug.utils import secure_filename
 import json
 import re
+import requests
 
 # Load environment variables from .env file
 load_dotenv()
@@ -232,8 +233,8 @@ def translate_to_words(items):
 @app.route('/')
 def index():
     projects = Project.query.order_by(Project.created_at.desc()).all()
-    geoapify_api_key = os.getenv('GEOAPIFY_API_KEY')
-    return render_template('index.html', projects=projects, geoapify_api_key=geoapify_api_key)
+    google_places_api_key = os.getenv('GOOGLE_PLACES_API_KEY')
+    return render_template('index.html', projects=projects, google_places_api_key=google_places_api_key)
 
 @app.route('/project/<int:project_id>')
 def project(project_id):
@@ -873,6 +874,22 @@ def get_items_info():
             'success': False,
             'error': str(e)
         })
+
+@app.route('/api/places/autocomplete', methods=['GET'])
+def places_autocomplete():
+    input_text = request.args.get('input', '')
+    if not input_text or len(input_text) < 3:
+        return jsonify({"predictions": []})
+    
+    api_key = os.getenv('GOOGLE_PLACES_API_KEY')
+    url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?input={input_text}&key={api_key}"
+    
+    try:
+        response = requests.get(url)
+        return jsonify(response.json())
+    except Exception as e:
+        app.logger.error(f"Error fetching places: {str(e)}")
+        return jsonify({"error": "Failed to fetch places", "predictions": []}), 500
 
 # Create the database tables
 with app.app_context():
