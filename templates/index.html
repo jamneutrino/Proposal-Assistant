@@ -9,6 +9,19 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    .dropdown-menu {
+        transition: opacity 0.1s ease-out, transform 0.1s ease-out;
+        opacity: 0;
+        transform: scale(0.95);
+        pointer-events: none;
+    }
+    .dropdown-menu.active {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+    }
+</style>
 <div class="mb-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -52,13 +65,13 @@
                     <h3 class="text-lg font-semibold text-gray-900 mb-1">{{ project.name }}</h3>
                     <p class="text-sm text-gray-500">Created: {{ project.created_at.strftime('%b %d, %Y') }}</p>
                 </div>
-                <div class="relative" x-data="{ open: false }">
-                    <button @click="open = !open" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                <div class="relative dropdown-container">
+                    <button class="dropdown-toggle text-gray-400 hover:text-gray-500 focus:outline-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
                     </button>
-                    <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10" style="display: none;">
+                    <div class="dropdown-menu origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
                         <div class="py-1">
                             <a href="{{ url_for('project', project_id=project.id) }}" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <svg class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -216,7 +229,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
     // Function to get CSRF token from meta tag
     function getCSRFToken() {
@@ -224,6 +236,51 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Make sure Alpine.js is properly initialized
+        if (typeof Alpine !== 'undefined') {
+            // Initialize Alpine.js if it hasn't been already
+            if (!window.alpineInitialized) {
+                Alpine.start();
+                window.alpineInitialized = true;
+            }
+        } else {
+            console.error('Alpine.js is not loaded properly');
+        }
+
+        // Ensure all dropdown menus are hidden by default
+        document.querySelectorAll('.dropdown-menu').forEach(dropdown => {
+            dropdown.classList.remove('active');
+        });
+
+        // Setup dropdown toggle functionality
+        const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+        dropdownToggles.forEach(toggle => {
+            toggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const container = this.closest('.dropdown-container');
+                const menu = container.querySelector('.dropdown-menu');
+                
+                // Close all other dropdowns first
+                document.querySelectorAll('.dropdown-menu').forEach(otherMenu => {
+                    if (otherMenu !== menu) {
+                        otherMenu.classList.remove('active');
+                    }
+                });
+                
+                // Toggle this dropdown
+                menu.classList.toggle('active');
+            });
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown-container')) {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                    menu.classList.remove('active');
+                });
+            }
+        });
+
         const addressInput = document.getElementById('address');
         const suggestionsContainer = document.getElementById('address-suggestions');
         const createProjectBtn = document.getElementById('createProjectBtn');
@@ -231,6 +288,7 @@
         const createProjectModal = document.getElementById('createProjectModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
         const dateInput = document.getElementById('date');
+        const projectForm = document.querySelector('#createProjectModal form');
         let debounceTimer;
 
         // Set default date to today
@@ -281,6 +339,72 @@
                 hideModal();
             }
         });
+
+        // Handle form submission
+        if (projectForm) {
+            projectForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent default form submission
+                
+                // Show loading state on button
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalBtnContent = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creating...
+                `;
+                
+                // Submit the form using fetch
+                console.log('Submitting form to:', this.action);
+                const formData = new FormData(this);
+                
+                // Log form data for debugging
+                for (let [key, value] of formData.entries()) {
+                    console.log(`${key}: ${value}`);
+                }
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.success) {
+                        // Redirect to the project page
+                        window.location.href = data.redirect;
+                    } else {
+                        // Show error message
+                        alert(data.error || 'An error occurred while creating the project.');
+                        
+                        // Reset button state
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnContent;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Reset button state
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnContent;
+                    
+                    // Show error message
+                    alert('An error occurred while creating the project. Please try again.');
+                });
+            });
+        }
 
         // Address autocomplete
         addressInput?.addEventListener('input', function() {

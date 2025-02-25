@@ -8,6 +8,8 @@ from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 from datetime import datetime, timedelta
 import os
+from validation import validate_login_data, validate_user_data, ValidationError, validate_string
+import re
 
 # Create Blueprint
 auth = Blueprint('auth', __name__)
@@ -182,58 +184,64 @@ def login():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember = True if request.form.get('remember') else False
-        
-        user = User.query.filter_by(username=username).first()
-        
-        # Check if user exists
-        if not user:
-            flash('Please check your login details and try again.', 'error')
-            return redirect(url_for('auth.login'))
-        
-        # Check if account is locked - only if the fields exist in the database
-        if hasattr(user, 'locked_until') and user.locked_until and user.locked_until > datetime.utcnow():
-            remaining_time = (user.locked_until - datetime.utcnow()).total_seconds() / 60
-            flash(f'Account is locked due to too many failed attempts. Try again in {int(remaining_time)} minutes.', 'error')
-            return redirect(url_for('auth.login'))
+        try:
+            # Validate login data
+            validated_data = validate_login_data(request.form)
+            username = validated_data['username']
+            password = validated_data['password']
+            remember = True if request.form.get('remember') else False
             
-        # Check password
-        if not user.check_password(password):
-            # Increment failed login attempts - only if the fields exist in the database
-            if hasattr(user, 'failed_login_attempts'):
-                user.failed_login_attempts += 1
-                user.last_failed_login = datetime.utcnow()
-                
-                # Check if we need to lock the account
-                if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-                    user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_DURATION)
-                    db.session.commit()
-                    flash(f'Too many failed login attempts. Account locked for {LOCKOUT_DURATION} minutes.', 'error')
-                else:
-                    remaining_attempts = MAX_FAILED_ATTEMPTS - user.failed_login_attempts
-                    flash(f'Invalid password. {remaining_attempts} attempts remaining before account lockout.', 'error')
-                    db.session.commit()
-            else:
+            user = User.query.filter_by(username=username).first()
+            
+            # Check if user exists
+            if not user:
                 flash('Please check your login details and try again.', 'error')
+                return redirect(url_for('auth.login'))
+            
+            # Check if account is locked - only if the fields exist in the database
+            if hasattr(user, 'locked_until') and user.locked_until and user.locked_until > datetime.utcnow():
+                remaining_time = (user.locked_until - datetime.utcnow()).total_seconds() / 60
+                flash(f'Account is locked due to too many failed attempts. Try again in {int(remaining_time)} minutes.', 'error')
+                return redirect(url_for('auth.login'))
+            
+            # Check if the password is correct
+            if not user.check_password(password):
+                # Increment failed login attempts if the field exists
+                if hasattr(user, 'failed_login_attempts'):
+                    user.failed_login_attempts += 1
+                    user.last_failed_login = datetime.utcnow()
+                    
+                    # Lock account after MAX_FAILED_ATTEMPTS
+                    if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+                        user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_DURATION)
+                        flash(f'Account locked due to too many failed attempts. Try again in {LOCKOUT_DURATION} minutes.', 'error')
+                    else:
+                        remaining_attempts = MAX_FAILED_ATTEMPTS - user.failed_login_attempts
+                        flash(f'Invalid password. {remaining_attempts} attempts remaining before account is locked.', 'error')
+                    
+                    db.session.commit()
+                else:
+                    flash('Please check your login details and try again.', 'error')
                 
+                return redirect(url_for('auth.login'))
+            
+            # Reset failed login attempts if login is successful
+            if hasattr(user, 'failed_login_attempts'):
+                user.failed_login_attempts = 0
+                user.locked_until = None
+                db.session.commit()
+            
+            # Log in the user
+            login_user(user, remember=remember)
+            return redirect(url_for('index'))
+        except ValidationError as e:
+            flash(str(e), 'error')
             return redirect(url_for('auth.login'))
-            
-        # Login successful - reset failed login counter if the fields exist
-        if hasattr(user, 'failed_login_attempts'):
-            user.failed_login_attempts = 0
-            user.last_failed_login = None
-            user.locked_until = None
-            db.session.commit()
-            
-        login_user(user, remember=remember)
-        next_page = request.args.get('next')
-        
-        if next_page:
-            return redirect(next_page)
-        return redirect(url_for('index'))
-        
+        except Exception as e:
+            current_app.logger.error(f"Error during login: {str(e)}")
+            flash('An error occurred during login. Please try again.', 'error')
+            return redirect(url_for('auth.login'))
+    
     return render_template('login.html')
 
 @auth.route('/logout')
@@ -255,31 +263,40 @@ def users():
 @admin_required
 def change_password():
     if request.method == 'POST':
-        current_password = request.form.get('current_password')
-        new_password = request.form.get('new_password')
-        confirm_password = request.form.get('confirm_password')
-        
-        # Check if current password is correct
-        if not current_user.check_password(current_password):
-            flash('Current password is incorrect.', 'error')
-            return redirect(url_for('auth.change_password'))
+        try:
+            current_password = validate_string(request.form.get('current_password'), "Current password", min_length=8)
+            new_password = validate_string(request.form.get('new_password'), "New password", min_length=8)
+            confirm_password = validate_string(request.form.get('confirm_password'), "Confirm password", min_length=8)
             
-        # Check if new passwords match
-        if new_password != confirm_password:
-            flash('New passwords do not match.', 'error')
-            return redirect(url_for('auth.change_password'))
+            # Check if current password is correct
+            if not current_user.check_password(current_password):
+                flash('Current password is incorrect.', 'error')
+                return redirect(url_for('auth.change_password'))
+                
+            # Check if new passwords match
+            if new_password != confirm_password:
+                flash('New passwords do not match.', 'error')
+                return redirect(url_for('auth.change_password'))
+                
+            # Validate password strength
+            if not (re.search(r'[A-Z]', new_password) and re.search(r'[a-z]', new_password) and 
+                    re.search(r'\d', new_password) and re.search(r'[!@#$%^&*(),.?":{}|<>]', new_password)):
+                flash('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.', 'error')
+                return redirect(url_for('auth.change_password'))
+                
+            # Update password
+            current_user.set_password(new_password)
+            db.session.commit()
             
-        # Validate password strength
-        if len(new_password) < 8:
-            flash('Password must be at least 8 characters long.', 'error')
+            flash('Password updated successfully!', 'success')
+            return redirect(url_for('auth.users'))
+        except ValidationError as e:
+            flash(str(e), 'error')
             return redirect(url_for('auth.change_password'))
-            
-        # Update password
-        current_user.set_password(new_password)
-        db.session.commit()
-        
-        flash('Password updated successfully!', 'success')
-        return redirect(url_for('auth.users'))
+        except Exception as e:
+            current_app.logger.error(f"Error changing password: {str(e)}")
+            flash('An error occurred while changing the password.', 'error')
+            return redirect(url_for('auth.change_password'))
         
     return render_template('change_password.html')
 
@@ -288,33 +305,42 @@ def change_password():
 @admin_required
 def create_user():
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        is_admin = True if request.form.get('is_admin') else False
-        
-        # Check if username already exists
-        user_exists = User.query.filter_by(username=username).first()
-        if user_exists:
-            flash('Username already exists.', 'error')
-            return redirect(url_for('auth.create_user'))
+        try:
+            # Validate user data
+            validated_data = validate_user_data(request.form, is_new_user=True)
             
-        # Check if email already exists
-        email_exists = User.query.filter_by(email=email).first()
-        if email_exists:
-            flash('Email already exists.', 'error')
+            # Check if username already exists
+            if User.query.filter_by(username=validated_data['username']).first():
+                flash('Username already exists.', 'error')
+                return redirect(url_for('auth.create_user'))
+                
+            # Check if email already exists
+            if User.query.filter_by(email=validated_data['email']).first():
+                flash('Email already exists.', 'error')
+                return redirect(url_for('auth.create_user'))
+            
+            # Create new user
+            is_admin = request.form.get('is_admin') == 'on'
+            new_user = User(
+                username=validated_data['username'],
+                email=validated_data['email'],
+                is_admin=is_admin
+            )
+            new_user.set_password(validated_data['password'])
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            flash('User created successfully!', 'success')
+            return redirect(url_for('auth.users'))
+        except ValidationError as e:
+            flash(str(e), 'error')
             return redirect(url_for('auth.create_user'))
-        
-        # Create new user
-        new_user = User(username=username, email=email, is_admin=is_admin)
-        new_user.set_password(password)
-        
-        db.session.add(new_user)
-        db.session.commit()
-        
-        flash(f'User {username} created successfully!', 'success')
-        return redirect(url_for('auth.users'))
-        
+        except Exception as e:
+            current_app.logger.error(f"Error creating user: {str(e)}")
+            flash('An error occurred while creating the user.', 'error')
+            return redirect(url_for('auth.create_user'))
+    
     return render_template('create_user.html')
 
 @auth.route('/admin/delete_user/<int:user_id>', methods=['POST'])

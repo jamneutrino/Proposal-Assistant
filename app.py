@@ -28,6 +28,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import uuid
 from flask_limiter import Limiter
+from validation import validate_project_data, validate_item_data, validate_file_upload, ValidationError, validate_string
 
 # Load environment variables from .env file
 load_dotenv()
@@ -419,36 +420,77 @@ def get_price(item_name):
 @app.route('/create_project', methods=['POST'])
 @login_required
 def create_project():
-    name = request.form.get('project_name')
-    date = request.form.get('date')
-    attn = request.form.get('attn')
-    contractor_name = request.form.get('contractor_name')
-    contractor_email = request.form.get('contractor_email')
-    job_contact = request.form.get('job_contact')
-    job_contact_phone = request.form.get('job_contact_phone')
-    address = request.form.get('address')
-    
-    if not name:
-        flash('Project name is required.', 'error')
-        return redirect(url_for('index'))
-    
-    project = Project(
-        name=name,
-        date=date,
-        attn=attn,
-        contractor_name=contractor_name,
-        contractor_email=contractor_email,
-        job_contact=job_contact,
-        job_contact_phone=job_contact_phone,
-        address=address,
-        user_id=current_user.id
-    )
-    
-    db.session.add(project)
-    db.session.commit()
-    
-    flash('Project created successfully!', 'success')
-    return redirect(url_for('project', project_id=project.id))
+    try:
+        # Debug logging
+        app.logger.debug(f"Form data received: {request.form}")
+        
+        # Check if project_name is in the form data
+        if 'project_name' not in request.form or not request.form['project_name'].strip():
+            error_msg = "Project name is required"
+            app.logger.error(error_msg)
+            flash(error_msg, 'error')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'error': error_msg
+                }), 400
+            else:
+                return redirect(url_for('index'))
+        
+        # Validate all project data
+        validated_data = validate_project_data(request.form)
+        
+        # Debug logging
+        app.logger.debug(f"Validated data: {validated_data}")
+        
+        # Create project with validated data
+        project = Project(
+            name=validated_data['name'],
+            date=validated_data['date'],
+            attn=validated_data['attn'],
+            contractor_name=validated_data['contractor_name'],
+            contractor_email=validated_data['contractor_email'],
+            job_contact=validated_data['job_contact'],
+            job_contact_phone=validated_data['job_contact_phone'],
+            address=validated_data['address'],
+            user_id=current_user.id
+        )
+        
+        db.session.add(project)
+        db.session.commit()
+        
+        # Debug logging
+        app.logger.debug(f"Project created with ID: {project.id}")
+        
+        flash('Project created successfully!', 'success')
+        
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'redirect': url_for('project', project_id=project.id)
+            })
+        else:
+            return redirect(url_for('project', project_id=project.id))
+    except ValidationError as e:
+        flash(str(e), 'error')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 400
+        else:
+            return redirect(url_for('index'))
+    except Exception as e:
+        app.logger.error(f"Error creating project: {str(e)}")
+        flash('An error occurred while creating the project.', 'error')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'error': 'An error occurred while creating the project.'
+            }), 500
+        else:
+            return redirect(url_for('index'))
 
 @app.route('/update_project/<int:project_id>', methods=['POST'])
 @login_required
@@ -460,19 +502,31 @@ def update_project(project_id):
         flash('You do not have permission to update this project.', 'error')
         return redirect(url_for('index'))
     
-    project.name = request.form.get('project_name')
-    project.date = request.form.get('date')
-    project.attn = request.form.get('attn')
-    project.contractor_name = request.form.get('contractor_name')
-    project.contractor_email = request.form.get('contractor_email')
-    project.job_contact = request.form.get('job_contact')
-    project.job_contact_phone = request.form.get('job_contact_phone')
-    project.address = request.form.get('address')
-    
-    db.session.commit()
-    
-    flash('Project updated successfully!', 'success')
-    return redirect(url_for('project', project_id=project.id, success=True))
+    try:
+        # Validate all project data
+        validated_data = validate_project_data(request.form)
+        
+        # Update project with validated data
+        project.name = validated_data['name']
+        project.date = validated_data['date']
+        project.attn = validated_data['attn']
+        project.contractor_name = validated_data['contractor_name']
+        project.contractor_email = validated_data['contractor_email']
+        project.job_contact = validated_data['job_contact']
+        project.job_contact_phone = validated_data['job_contact_phone']
+        project.address = validated_data['address']
+        
+        db.session.commit()
+        
+        flash('Project updated successfully!', 'success')
+        return redirect(url_for('project', project_id=project.id, success=True))
+    except ValidationError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('project', project_id=project.id))
+    except Exception as e:
+        app.logger.error(f"Error updating project: {str(e)}")
+        flash('An error occurred while updating the project.', 'error')
+        return redirect(url_for('project', project_id=project.id))
 
 @app.route('/add_item/<int:project_id>', methods=['POST'])
 @login_required
@@ -483,22 +537,34 @@ def add_item(project_id):
     if project.user_id != current_user.id and not current_user.is_admin:
         return jsonify({'success': False, 'error': 'Permission denied'})
     
-    data = request.get_json()
-    item_name = data.get('item')
-    quantity = data.get('quantity')
-    price = data.get('price')
-    
-    item = Item(name=item_name, quantity=quantity, price=price, project_id=project.id)
-    db.session.add(item)
-    db.session.commit()
-    
-    translation = translate_to_words(project.items)
-    
-    return jsonify({
-        'success': True,
-        'items': [{'name': i.name, 'quantity': i.quantity, 'price': i.price} for i in project.items],
-        'translation': translation
-    })
+    try:
+        data = request.get_json()
+        
+        # Validate item data
+        validated_data = validate_item_data(data)
+        
+        item = Item(
+            name=validated_data['name'], 
+            quantity=validated_data['quantity'], 
+            price=validated_data['price'], 
+            project_id=project.id
+        )
+        
+        db.session.add(item)
+        db.session.commit()
+        
+        translation = translate_to_words(project.items)
+        
+        return jsonify({
+            'success': True,
+            'items': [{'name': i.name, 'quantity': i.quantity, 'price': i.price} for i in project.items],
+            'translation': translation
+        })
+    except ValidationError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.error(f"Error adding item: {str(e)}")
+        return jsonify({'success': False, 'error': 'An error occurred while adding the item'}), 500
 
 @app.route('/clear_items/<int:project_id>', methods=['POST'])
 @login_required
@@ -907,11 +973,24 @@ def admin():
 def admin_add_item():
     global ITEMS
     name = request.form.get('name')
-    image = request.files.get('image')
-    image_path = None
     
-    if name and name not in [item.name for item in ITEMS]:
-        if image and allowed_file(image.filename):
+    try:
+        # Validate the name
+        name = validate_string(name, "Item name", max_length=100)
+        
+        if name in [item.name for item in ITEMS]:
+            return jsonify({'success': False, 'error': 'Item with this name already exists'}), 400
+        
+        # Validate the image file
+        image = validate_file_upload(
+            request.files.get('image'), 
+            field_name="Image", 
+            allowed_extensions=ALLOWED_EXTENSIONS, 
+            max_size_mb=16
+        )
+        
+        image_path = None
+        if image:
             filename = secure_filename(image.filename)
             # Add timestamp to filename to prevent duplicates
             filename = f"{int(time.time())}_{filename}"
@@ -922,26 +1001,40 @@ def admin_add_item():
         ITEMS.sort(key=lambda x: x.name)  # Keep items sorted by name
         save_items_to_file()
         return jsonify({'success': True})
-    
-    return jsonify({'success': False}), 400
+    except ValidationError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.error(f"Error adding item: {str(e)}")
+        return jsonify({'success': False, 'error': 'An error occurred while adding the item'}), 500
 
 @app.route('/admin/items/edit', methods=['POST'])
 def admin_edit_item():
     global ITEMS
-    old_name = request.form.get('oldName')
-    new_name = request.form.get('newName')
-    image = request.files.get('image')
-    keep_image = request.form.get('keepImage') == 'true'
-    
-    old_item = next((item for item in ITEMS if item.name == old_name), None)
-    if old_item and new_name:
+    try:
+        old_name = validate_string(request.form.get('oldName'), "Old item name", max_length=100)
+        new_name = validate_string(request.form.get('newName'), "New item name", max_length=100)
+        keep_image = request.form.get('keepImage') == 'true'
+        
+        old_item = next((item for item in ITEMS if item.name == old_name), None)
+        if not old_item:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+            
         # Only check for name conflict if the name is actually changing
         if new_name != old_name and new_name in [item.name for item in ITEMS if item.name != old_name]:
             return jsonify({'success': False, 'error': 'Name already exists'}), 400
 
+        # Validate the image file
+        image = validate_file_upload(
+            request.files.get('image'), 
+            field_name="Image", 
+            allowed_extensions=ALLOWED_EXTENSIONS, 
+            max_size_mb=16,
+            required=False
+        )
+        
         # Handle image update
         image_path = old_item.image_path if keep_image else None
-        if image and allowed_file(image.filename):
+        if image:
             # Delete old image if exists
             if old_item.image_path:
                 old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(old_item.image_path))
@@ -958,48 +1051,47 @@ def admin_edit_item():
             if os.path.exists(old_image_path):
                 os.remove(old_image_path)
         
-        # Update item in ITEMS list
+        # Update the item
         old_item.name = new_name
         old_item.image_path = image_path
-        ITEMS.sort(key=lambda x: x.name)  # Keep items sorted
+        
+        # Save changes
+        ITEMS.sort(key=lambda x: x.name)  # Keep items sorted by name
         save_items_to_file()
         
-        # Update any existing items in projects
-        if new_name != old_name:
-            items_to_update = Item.query.filter_by(name=old_name).all()
-            for item in items_to_update:
-                item.name = new_name
-            db.session.commit()
-        
         return jsonify({'success': True})
-    
-    return jsonify({'success': False}), 400
+    except ValidationError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.error(f"Error editing item: {str(e)}")
+        return jsonify({'success': False, 'error': 'An error occurred while editing the item'}), 500
 
 @app.route('/admin/items/delete', methods=['POST'])
 def admin_delete_item():
     global ITEMS
-    name = request.json.get('name')
-    
-    item_to_delete = next((item for item in ITEMS if item.name == name), None)
-    if item_to_delete:
-        # Delete image if exists
+    try:
+        name = validate_string(request.form.get('name'), "Item name", max_length=100)
+        
+        item_to_delete = next((item for item in ITEMS if item.name == name), None)
+        if not item_to_delete:
+            return jsonify({'success': False, 'error': 'Item not found'}), 404
+        
+        # Delete image file if exists
         if item_to_delete.image_path:
             image_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(item_to_delete.image_path))
             if os.path.exists(image_path):
                 os.remove(image_path)
         
-        ITEMS.remove(item_to_delete)
+        # Remove item from list
+        ITEMS = [item for item in ITEMS if item.name != name]
         save_items_to_file()
         
-        # Delete any existing items in projects
-        items_to_delete = Item.query.filter_by(name=name).all()
-        for item in items_to_delete:
-            db.session.delete(item)
-        db.session.commit()
-        
         return jsonify({'success': True})
-    
-    return jsonify({'success': False}), 400
+    except ValidationError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        app.logger.error(f"Error deleting item: {str(e)}")
+        return jsonify({'success': False, 'error': 'An error occurred while deleting the item'}), 500
 
 # Function to immediately clean up all temporary files
 def cleanup_all_temp_files():
@@ -1076,16 +1168,31 @@ def get_items_info():
 
 @app.route('/api/places/autocomplete', methods=['GET'])
 def places_autocomplete():
-    input_text = request.args.get('input', '')
-    if not input_text or len(input_text) < 3:
-        return jsonify({"predictions": []})
-    
-    api_key = os.getenv('GOOGLE_PLACES_API_KEY')
-    url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?input={input_text}&key={api_key}"
-    
     try:
+        input_text = validate_string(
+            request.args.get('input', ''), 
+            "Search input", 
+            min_length=3, 
+            required=True
+        )
+        
+        api_key = os.getenv('GOOGLE_PLACES_API_KEY')
+        if not api_key:
+            app.logger.error("Google Places API key not found")
+            return jsonify({"error": "API configuration error", "predictions": []}), 500
+            
+        # Sanitize input for URL
+        input_text = requests.utils.quote(input_text)
+        url = f"https://maps.googleapis.com/maps/api/place/autocomplete/json?input={input_text}&key={api_key}"
+        
         response = requests.get(url)
+        if response.status_code != 200:
+            app.logger.error(f"Google Places API error: {response.status_code} - {response.text}")
+            return jsonify({"error": "Failed to fetch places", "predictions": []}), response.status_code
+            
         return jsonify(response.json())
+    except ValidationError as e:
+        return jsonify({"error": str(e), "predictions": []}), 400
     except Exception as e:
         app.logger.error(f"Error fetching places: {str(e)}")
         return jsonify({"error": "Failed to fetch places", "predictions": []}), 500
