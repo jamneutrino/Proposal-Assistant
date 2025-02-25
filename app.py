@@ -851,6 +851,29 @@ def admin_cleanup_temp_files():
     files_cleaned = cleanup_all_temp_files()
     return jsonify({'success': True, 'files_cleaned': files_cleaned})
 
+@app.route('/get_items_info', methods=['GET'])
+def get_items_info():
+    """Return a list of all items with their info (name, image_path)"""
+    try:
+        # Convert the ITEMS list to a JSON-friendly format
+        items_data = []
+        for item in ITEMS:
+            items_data.append({
+                'name': item.name,
+                'image_path': item.image_path
+            })
+        
+        return jsonify({
+            'success': True,
+            'items': items_data
+        })
+    except Exception as e:
+        print(f"Error getting items info: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 # Create the database tables
 with app.app_context():
     db.create_all()
