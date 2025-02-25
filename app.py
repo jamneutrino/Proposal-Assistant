@@ -371,9 +371,10 @@ def format_date_for_input(date_str):
 @app.route('/')
 @login_required
 def index():
+    from datetime import datetime
     projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
     google_places_api_key = os.getenv('GOOGLE_PLACES_API_KEY')
-    return render_template('index.html', projects=projects, google_places_api_key=google_places_api_key)
+    return render_template('index.html', projects=projects, google_places_api_key=google_places_api_key, now=datetime.now())
 
 @app.route('/project/<int:project_id>')
 @login_required
