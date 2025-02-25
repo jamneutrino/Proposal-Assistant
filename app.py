@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime, timedelta
@@ -159,12 +159,13 @@ def update_price_cache():
             last_update = current_time
 
 def format_date(date_str):
-    """Format a date string to MM-DD-YYYY format if possible"""
+    """Format a date string to MM-DD-YYYY format"""
     if not date_str:
         return ""
+        
+    # Try different formats
+    formats = ['%Y-%m-%d', '%m/%d/%Y', '%m-%d-%Y', '%m/%d/%y', '%m-%d-%y']
     
-    # Try different common formats
-    formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']
     for fmt in formats:
         try:
             date_obj = datetime.strptime(date_str, fmt)
@@ -172,8 +173,33 @@ def format_date(date_str):
         except ValueError:
             continue
     
-    # If already in MM-DD-YYYY format or unknown format, return as is
+    # If all formats fail, return the original string
     return date_str
+
+# Add a filter to convert MM-DD-YYYY to YYYY-MM-DD for HTML date inputs
+@app.template_filter('format_date_for_input')
+def format_date_for_input(date_str):
+    """Convert MM-DD-YYYY to YYYY-MM-DD for HTML date inputs"""
+    if not date_str:
+        return ""
+    
+    try:
+        # Try to parse the date as MM-DD-YYYY
+        date_obj = datetime.strptime(date_str, '%m-%d-%Y')
+        return date_obj.strftime('%Y-%m-%d')
+    except ValueError:
+        # Try other formats
+        formats = ['%Y-%m-%d', '%m/%d/%Y', '%m-%d-%Y', '%m/%d/%y', '%m-%d-%y']
+        
+        for fmt in formats:
+            try:
+                date_obj = datetime.strptime(date_str, fmt)
+                return date_obj.strftime('%Y-%m-%d')
+            except ValueError:
+                continue
+        
+        # If all formats fail, return empty string
+        return ""
 
 # Database Models
 class Project(db.Model):
@@ -250,11 +276,20 @@ def project(project_id):
     # Pass the items list with their names and image paths
     items_with_images = [{'name': item.name, 'image_path': item.image_path} for item in ITEMS]
     
+    # Get flash messages
+    flash_messages = []
+    from flask import get_flashed_messages
+    messages = get_flashed_messages(with_categories=True)
+    if messages:
+        for category, message in messages:
+            flash_messages.append({'category': category, 'message': message})
+    
     return render_template('project.html', 
                          project=project, 
                          items=items_with_images, 
                          translation=translation,
-                         price_cache=price_cache)
+                         price_cache=price_cache,
+                         flash_messages=flash_messages)
 
 @app.route('/get_price/<item_name>')
 def get_price(item_name):
@@ -292,6 +327,45 @@ def create_project():
     )
     db.session.add(project)
     db.session.commit()
+    return redirect(url_for('project', project_id=project.id))
+
+@app.route('/update_project/<int:project_id>', methods=['POST'])
+def update_project(project_id):
+    project = Project.query.get_or_404(project_id)
+    
+    # Get name from the form (required)
+    name = request.form.get('project_name')
+    if not name:
+        return jsonify({'error': 'Project name is required'}), 400
+    
+    # Get date from the form
+    date = request.form.get('date', '')
+    
+    # Convert date from YYYY-MM-DD (HTML date input format) to MM-DD-YYYY (app format)
+    if date:
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            date = date_obj.strftime('%m-%d-%Y')
+        except ValueError:
+            # If parsing fails, use format_date function as fallback
+            date = format_date(date)
+    
+    # Update project fields
+    project.name = name
+    project.date = date
+    project.attn = request.form.get('attn', '')
+    project.contractor_name = request.form.get('contractor_name', '')
+    project.contractor_email = request.form.get('contractor_email', '')
+    project.job_contact = request.form.get('job_contact', '')
+    project.job_contact_phone = request.form.get('job_contact_phone', '')
+    project.address = request.form.get('address', '')
+    
+    db.session.commit()
+    
+    # Add flash message for success
+    flash('Project updated successfully', 'success')
+    
+    # Redirect back to project page
     return redirect(url_for('project', project_id=project.id))
 
 @app.route('/add_item/<int:project_id>', methods=['POST'])

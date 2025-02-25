@@ -15,6 +15,12 @@
             {% endif %}
         </div>
         <div class="flex gap-4">
+            <button id="editProjectBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Project
+            </button>
             <button id="generateWordBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150">
                 Generate Word
             </button>
@@ -298,16 +304,190 @@
     </div>
     <div class="mt-2 text-sm text-gray-500" id="toast-description">The download should start automatically.</div>
 </div>
+
+<!-- Flash Messages Handler -->
+{% if flash_messages %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function showToast(message, description, type = 'success') {
+            const toast = document.getElementById('toast-notification');
+            const toastMessage = document.getElementById('toast-message');
+            const toastDescription = document.getElementById('toast-description');
+            const iconContainer = toast.querySelector('.flex-shrink-0');
+            
+            // Set message and description
+            toastMessage.textContent = message;
+            toastDescription.textContent = description;
+            
+            // Set icon based on type
+            if (type === 'success') {
+                iconContainer.innerHTML = '<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                toast.classList.remove('border-red-500', 'bg-red-50');
+                toast.classList.add('border-green-500', 'bg-green-50');
+            } else {
+                iconContainer.innerHTML = '<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                toast.classList.remove('border-green-500', 'bg-green-50');
+                toast.classList.add('border-red-500', 'bg-red-50');
+            }
+            
+            // Show toast
+            toast.classList.remove('translate-y-[-100vh]');
+            toast.classList.add('translate-y-0');
+            
+            // Auto-hide after 5 seconds
+            const hideTimeout = setTimeout(() => {
+                hideToast();
+            }, 5000);
+            
+            // Setup close button
+            document.getElementById('close-toast').onclick = () => {
+                clearTimeout(hideTimeout);
+                hideToast();
+            };
+        }
+        
+        function hideToast() {
+            const toast = document.getElementById('toast-notification');
+            toast.classList.remove('translate-y-0');
+            toast.classList.add('translate-y-[-100vh]');
+        }
+        
+        {% for message in flash_messages %}
+            showToast(
+                "{{ message.message }}", 
+                "{{ 'Changes have been saved successfully.' if message.category == 'success' else '' }}", 
+                "{{ message.category }}"
+            );
+        {% endfor %}
+    });
+</script>
+{% endif %}
+
+<!-- Edit Project Modal -->
+<div id="editProjectModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-900">Edit Project</h3>
+            <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <form action="{{ url_for('update_project', project_id=project.id) }}" method="POST" class="space-y-6">
+            <!-- Project Name (Required) -->
+            <div class="form-group">
+                <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1">
+                    Project Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="project_name" name="project_name" required value="{{ project.name }}"
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+            </div>
+
+            <!-- Date -->
+            <div class="form-group">
+                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <input type="date" id="date" name="date" value="{{ project.date|format_date_for_input if project.date else '' }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <!-- Address with Autocomplete -->
+            <div class="form-group relative">
+                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="edit_address" name="address" value="{{ project.address }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 pl-10 pr-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors"
+                        placeholder="Start typing to search for an address...">
+                </div>
+                <div id="edit-address-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden mt-1 max-h-60 overflow-y-auto"></div>
+            </div>
+
+            <!-- Attention To -->
+            <div class="form-group">
+                <label for="attn" class="block text-sm font-medium text-gray-700 mb-1">Attention To</label>
+                <input type="text" id="attn" name="attn" value="{{ project.attn }}"
+                    class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+            </div>
+
+            <!-- Contractor Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="contractor_name" class="block text-sm font-medium text-gray-700 mb-1">Contractor Name</label>
+                    <input type="text" id="contractor_name" name="contractor_name" value="{{ project.contractor_name }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+                <div class="form-group">
+                    <label for="contractor_email" class="block text-sm font-medium text-gray-700 mb-1">Contractor Email</label>
+                    <input type="email" id="contractor_email" name="contractor_email" value="{{ project.contractor_email }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <!-- Job Contact Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="job_contact" class="block text-sm font-medium text-gray-700 mb-1">Job Contact</label>
+                    <input type="text" id="job_contact" name="job_contact" value="{{ project.job_contact }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+                <div class="form-group">
+                    <label for="job_contact_phone" class="block text-sm font-medium text-gray-700 mb-1">Job Contact Phone</label>
+                    <input type="tel" id="job_contact_phone" name="job_contact_phone" value="{{ project.job_contact_phone }}"
+                        class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-200 transition-colors">
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="w-full px-6 py-3 bg-primary-600 text-white text-base font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-150 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Display flash messages if any
+        {% if flash_messages %}
+            {% for message in flash_messages %}
+                showToast(
+                    "{{ message.message }}", 
+                    "{{ 'Changes have been saved successfully.' if message.category == 'success' else '' }}", 
+                    "{{ message.category }}"
+                );
+            {% endfor %}
+        {% endif %}
+        
         const itemSelect = document.getElementById('itemSelect');
         const priceInput = document.getElementById('price');
         const generateWordBtn = document.getElementById('generateWordBtn');
         const questionsBtn = document.getElementById('questionsBtn');
         const questionsModal = document.getElementById('questionsModal');
+        const editProjectBtn = document.getElementById('editProjectBtn');
+        const editProjectModal = document.getElementById('editProjectModal');
+        const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+        const editAddressInput = document.getElementById('edit_address');
+        const editAddressSuggestions = document.getElementById('edit-address-suggestions');
         
         console.log("Questions button:", questionsBtn);
         console.log("Questions modal:", questionsModal);
@@ -448,6 +628,80 @@
                 showToast('Error generating document', error.message, 'error');
             }
         });
+
+        // Edit Project Modal functionality
+        if (editProjectBtn) {
+            editProjectBtn.addEventListener('click', function() {
+                if (editProjectModal) {
+                    editProjectModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        }
+        
+        if (closeEditModalBtn) {
+            closeEditModalBtn.addEventListener('click', function() {
+                if (editProjectModal) {
+                    editProjectModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Close edit modal when clicking outside
+        if (editProjectModal) {
+            editProjectModal.addEventListener('click', function(e) {
+                if (e.target === editProjectModal) {
+                    editProjectModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        // Address autocomplete for edit modal
+        let editDebounceTimer;
+        if (editAddressInput) {
+            editAddressInput.addEventListener('input', function() {
+                clearTimeout(editDebounceTimer);
+                if (this.value.length < 3) {
+                    editAddressSuggestions.classList.add('hidden');
+                    return;
+                }
+
+                editDebounceTimer = setTimeout(() => {
+                    const url = `/api/places/autocomplete?input=${encodeURIComponent(this.value)}`;
+
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            editAddressSuggestions.innerHTML = '';
+                            if (data.predictions && data.predictions.length > 0) {
+                                data.predictions.forEach(prediction => {
+                                    const div = document.createElement('div');
+                                    div.className = 'p-3 hover:bg-gray-50 cursor-pointer text-sm';
+                                    div.textContent = prediction.description;
+                                    div.addEventListener('click', () => {
+                                        editAddressInput.value = prediction.description;
+                                        editAddressSuggestions.classList.add('hidden');
+                                    });
+                                    editAddressSuggestions.appendChild(div);
+                                });
+                                editAddressSuggestions.classList.remove('hidden');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching address suggestions:', error);
+                        });
+                }, 300);
+            });
+            
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (e.target !== editAddressInput && e.target !== editAddressSuggestions) {
+                    editAddressSuggestions.classList.add('hidden');
+                }
+            });
+        }
 
         function updateTable(items) {
             const tbody = document.getElementById('itemsTable');
@@ -816,4 +1070,4 @@
         }
     });
 </script>
-{% endblock %} 
+{% endblock %}
