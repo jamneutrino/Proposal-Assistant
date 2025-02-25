@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 import json
 import re
 import requests
+from flask_login import current_user, login_required
 
 # Load environment variables from .env file
 load_dotenv()
@@ -38,8 +39,13 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-db = SQLAlchemy(app)
+# Initialize SQLAlchemy
+from models import db, User, Project, Item
+db.init_app(app)
 migrate = Migrate(app, db)
+
+# Import auth after models
+import auth
 
 # Create a lock for thread-safe operations
 cleanup_lock = threading.Lock()
@@ -201,71 +207,24 @@ def format_date_for_input(date_str):
         # If all formats fail, return empty string
         return ""
 
-# Database Models
-class Project(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.String(100))
-    attn = db.Column(db.String(100))
-    contractor_name = db.Column(db.String(100))
-    contractor_email = db.Column(db.String(100))
-    job_contact = db.Column(db.String(100))
-    job_contact_phone = db.Column(db.String(100))
-    address = db.Column(db.String(200))  # New field for address
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    items = db.relationship('Item', backref='project', lazy=True, cascade='all, delete-orphan')
-
-class Item(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-def translate_to_words(items):
-    if not items:
-        return "No items selected."
-    
-    item_counts = {}
-    for item in items:
-        if item.name in item_counts:
-            item_counts[item.name] += item.quantity
-        else:
-            item_counts[item.name] = item.quantity
-    
-    parts = []
-    
-    for item, count in item_counts.items():
-        if item == "Curbs":
-            curb_text = "Curb" if count == 1 else "Curbs"
-            parts.append(f"- Tie-In / Flash ({count}) {curb_text} with roofing material compatible to existing material.")
-        elif item == "Pipes":
-            pipe_text = "pipe / penetration" if count == 1 else "pipes / penetrations"
-            parts.append(f"- Tie-In / Flash ({count}) {pipe_text} with roofing material compatible to existing material.")
-        elif item == "Item 1":
-            parts.append(f"- {count} flashing {item}.")
-        elif item == "Item 2":
-            parts.append(f"- {count} {item} panels.")
-        else:
-            parts.append(f"- {count} {item}.")
-    
-    # Join with double line breaks
-    if len(parts) > 1:
-        return "\n\n".join(parts)
-    else:
-        return parts[0]
-
 @app.route('/')
+@login_required
 def index():
-    projects = Project.query.order_by(Project.created_at.desc()).all()
+    projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
     google_places_api_key = os.getenv('GOOGLE_PLACES_API_KEY')
     return render_template('index.html', projects=projects, google_places_api_key=google_places_api_key)
 
 @app.route('/project/<int:project_id>')
+@login_required
 def project(project_id):
-    update_price_cache()  # Update prices when viewing a project
     project = Project.query.get_or_404(project_id)
+    
+    # Check if the project belongs to the current user
+    if project.user_id != current_user.id and not current_user.is_admin:
+        flash('You do not have permission to view this project.', 'error')
+        return redirect(url_for('index'))
+    
+    update_price_cache()  # Update prices when viewing a project
     
     # Format the date to MM-DD-YYYY
     if project.date:
@@ -298,123 +257,122 @@ def get_price(item_name):
     return jsonify({'price': price})
 
 @app.route('/create_project', methods=['POST'])
+@login_required
 def create_project():
     name = request.form.get('project_name')
-    if not name:  # Name is required
-        return jsonify({'error': 'Project name is required'}), 400
+    date = request.form.get('date')
+    attn = request.form.get('attn')
+    contractor_name = request.form.get('contractor_name')
+    contractor_email = request.form.get('contractor_email')
+    job_contact = request.form.get('job_contact')
+    job_contact_phone = request.form.get('job_contact_phone')
+    address = request.form.get('address')
     
-    # Get date from the form
-    date = request.form.get('date', '')
-    
-    # Convert date from YYYY-MM-DD (HTML date input format) to MM-DD-YYYY (app format)
-    if date:
-        try:
-            date_obj = datetime.strptime(date, '%Y-%m-%d')
-            date = date_obj.strftime('%m-%d-%Y')
-        except ValueError:
-            # If parsing fails, use format_date function as fallback
-            date = format_date(date)
+    if not name:
+        flash('Project name is required.', 'error')
+        return redirect(url_for('index'))
     
     project = Project(
         name=name,
         date=date,
-        attn=request.form.get('attn', ''),
-        contractor_name=request.form.get('contractor_name', ''),
-        contractor_email=request.form.get('contractor_email', ''),
-        job_contact=request.form.get('job_contact', ''),
-        job_contact_phone=request.form.get('job_contact_phone', ''),
-        address=request.form.get('address', '')
+        attn=attn,
+        contractor_name=contractor_name,
+        contractor_email=contractor_email,
+        job_contact=job_contact,
+        job_contact_phone=job_contact_phone,
+        address=address,
+        user_id=current_user.id
     )
+    
     db.session.add(project)
     db.session.commit()
+    
+    flash('Project created successfully!', 'success')
     return redirect(url_for('project', project_id=project.id))
 
 @app.route('/update_project/<int:project_id>', methods=['POST'])
+@login_required
 def update_project(project_id):
     project = Project.query.get_or_404(project_id)
     
-    # Get name from the form (required)
-    name = request.form.get('project_name')
-    if not name:
-        return jsonify({'error': 'Project name is required'}), 400
+    # Check if the project belongs to the current user
+    if project.user_id != current_user.id and not current_user.is_admin:
+        flash('You do not have permission to update this project.', 'error')
+        return redirect(url_for('index'))
     
-    # Get date from the form
-    date = request.form.get('date', '')
-    
-    # Convert date from YYYY-MM-DD (HTML date input format) to MM-DD-YYYY (app format)
-    if date:
-        try:
-            date_obj = datetime.strptime(date, '%Y-%m-%d')
-            date = date_obj.strftime('%m-%d-%Y')
-        except ValueError:
-            # If parsing fails, use format_date function as fallback
-            date = format_date(date)
-    
-    # Update project fields
-    project.name = name
-    project.date = date
-    project.attn = request.form.get('attn', '')
-    project.contractor_name = request.form.get('contractor_name', '')
-    project.contractor_email = request.form.get('contractor_email', '')
-    project.job_contact = request.form.get('job_contact', '')
-    project.job_contact_phone = request.form.get('job_contact_phone', '')
-    project.address = request.form.get('address', '')
+    project.name = request.form.get('project_name')
+    project.date = request.form.get('date')
+    project.attn = request.form.get('attn')
+    project.contractor_name = request.form.get('contractor_name')
+    project.contractor_email = request.form.get('contractor_email')
+    project.job_contact = request.form.get('job_contact')
+    project.job_contact_phone = request.form.get('job_contact_phone')
+    project.address = request.form.get('address')
     
     db.session.commit()
     
-    # Add flash message for success
-    flash('Project updated successfully', 'success')
-    
-    # Redirect back to project page
-    return redirect(url_for('project', project_id=project.id))
+    flash('Project updated successfully!', 'success')
+    return redirect(url_for('project', project_id=project.id, success=True))
 
 @app.route('/add_item/<int:project_id>', methods=['POST'])
+@login_required
 def add_item(project_id):
     project = Project.query.get_or_404(project_id)
-    data = request.json
     
-    item = Item(
-        name=data['item'],
-        quantity=data['quantity'],
-        price=data['price'],
-        project=project
-    )
+    # Check if the project belongs to the current user
+    if project.user_id != current_user.id and not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Permission denied'})
     
+    data = request.get_json()
+    item_name = data.get('item')
+    quantity = data.get('quantity')
+    price = data.get('price')
+    
+    item = Item(name=item_name, quantity=quantity, price=price, project_id=project.id)
     db.session.add(item)
     db.session.commit()
     
     translation = translate_to_words(project.items)
+    
     return jsonify({
-        'success': True, 
-        'items': [{
-            'name': item.name,
-            'quantity': item.quantity,
-            'price': item.price,
-            'total': item.quantity * item.price
-        } for item in project.items],
+        'success': True,
+        'items': [{'name': i.name, 'quantity': i.quantity, 'price': i.price} for i in project.items],
         'translation': translation
     })
 
 @app.route('/clear_items/<int:project_id>', methods=['POST'])
+@login_required
 def clear_items(project_id):
     project = Project.query.get_or_404(project_id)
+    
+    # Check if the project belongs to the current user
+    if project.user_id != current_user.id and not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Permission denied'})
+    
     for item in project.items:
         db.session.delete(item)
     db.session.commit()
     
-    translation = translate_to_words([])
-    return jsonify({'success': True, 'items': [], 'translation': translation})
+    return jsonify({
+        'success': True,
+        'items': [],
+        'translation': ''
+    })
 
 @app.route('/delete_project/<int:project_id>', methods=['POST'])
+@login_required
 def delete_project(project_id):
     project = Project.query.get_or_404(project_id)
     
-    # First delete all items associated with the project
-    Item.query.filter_by(project_id=project_id).delete()
+    # Check if the project belongs to the current user
+    if project.user_id != current_user.id and not current_user.is_admin:
+        flash('You do not have permission to delete this project.', 'error')
+        return redirect(url_for('index'))
     
-    # Then delete the project
     db.session.delete(project)
     db.session.commit()
+    
+    flash('Project deleted successfully!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/generate_word/<int:project_id>', methods=['POST'])
@@ -776,7 +734,13 @@ def generate_word(project_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin')
+@login_required
 def admin():
+    # Check if user is admin
+    if not current_user.is_admin:
+        flash('You do not have permission to access the admin area.', 'error')
+        return redirect(url_for('index'))
+    
     return render_template('admin.html', items=ITEMS)
 
 @app.route('/admin/items/add', methods=['POST'])
@@ -966,9 +930,45 @@ def places_autocomplete():
         app.logger.error(f"Error fetching places: {str(e)}")
         return jsonify({"error": "Failed to fetch places", "predictions": []}), 500
 
-# Create the database tables
+def translate_to_words(items):
+    if not items:
+        return "No items selected."
+    
+    item_counts = {}
+    for item in items:
+        if item.name in item_counts:
+            item_counts[item.name] += item.quantity
+        else:
+            item_counts[item.name] = item.quantity
+    
+    parts = []
+    
+    for item, count in item_counts.items():
+        if item == "Curbs":
+            curb_text = "Curb" if count == 1 else "Curbs"
+            parts.append(f"- Tie-In / Flash ({count}) {curb_text} with roofing material compatible to existing material.")
+        elif item == "Pipes":
+            pipe_text = "pipe / penetration" if count == 1 else "pipes / penetrations"
+            parts.append(f"- Tie-In / Flash ({count}) {pipe_text} with roofing material compatible to existing material.")
+        elif item == "Item 1":
+            parts.append(f"- {count} flashing {item}.")
+        elif item == "Item 2":
+            parts.append(f"- {count} {item} panels.")
+        else:
+            parts.append(f"- {count} {item}.")
+    
+    # Join with double line breaks
+    if len(parts) > 1:
+        return "\n\n".join(parts)
+    else:
+        return parts[0]
+
+# Initialize authentication after database setup
 with app.app_context():
+    # Create all tables if they don't exist
     db.create_all()
+    # Initialize authentication
+    auth.init_app(app)
 
 if __name__ == '__main__':
     # Initial price cache update
