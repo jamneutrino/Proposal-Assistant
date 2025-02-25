@@ -18,14 +18,54 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
+# Initialize Limiter - we'll initialize it properly in init_app
+limiter = None
+
+# Initialize Limiter with default values - we'll update it in init_app
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri="memory://",
+    default_limits=["200 per day", "50 per hour"],
+    headers_enabled=True,
+    retry_after="delta-seconds"
+)
+
+# Initialize Limiter with a proper way that won't cause issues
+# when importing before app is created
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"  # Use a more reliable strategy
+)
+
+# Initialize Limiter with a proper way that won't cause issues
+# when importing before app is created
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window",  # Use a more reliable strategy
+    default_limits_deduct_when=lambda: False  # Avoid tracking unauthenticated requests incorrectly
+)
+
+# Initialize the rate limiter
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window",  # More reliable rate limiting strategy
+    default_limits_deduct_when=lambda: False  # Only track authenticated requests
+)
+
 # Initialize the rate limiter - will be attached to app in init_app()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["100 per day", "30 per hour"],
-    storage_uri="memory://",
-    strategy="fixed-window",
-    headers_enabled=True,
-    retry_after="delta-seconds"
+    storage_uri="memory://",  # In-memory storage for rate limiting
+    strategy="fixed-window",  # More reliable than moving-window
+    headers_enabled=True,     # Add rate limit headers to responses
+    retry_after="delta-seconds"  # Use seconds in retry-after header
 )
 
 # Constants for login rate limiting
@@ -48,12 +88,14 @@ def admin_required(f):
 # Custom error handler for rate limiting
 @auth.errorhandler(RateLimitExceeded)
 def handle_rate_limit_exceeded(e):
-    retry_after = 60  # Default value
-    
     try:
+        # Extract the retry_after value from the exception
+        retry_after = 60  # Default value
+        
         # Debug information
         print(f"Auth blueprint handler - Rate limit exceeded: {e}")
         print(f"Auth blueprint handler - Exception type: {type(e)}")
+        print(f"Auth blueprint handler - Exception attributes: {dir(e)}")
         
         # Try to get the actual retry_after value from the exception
         if hasattr(e, 'retry_after'):
@@ -77,58 +119,22 @@ def handle_rate_limit_exceeded(e):
             elif 'day' in description:
                 retry_after = 600  # 10 minutes in seconds
                 print(f"Using day-based retry_after: {retry_after}")
-    except Exception as ex:
-        print(f"Error processing rate limit exception: {ex}")
-        # Continue with default retry_after value
-    
-    try:
+        
         print(f"Final retry_after value: {retry_after}")
         
         # Return an error page directly instead of redirecting to avoid loops
         return render_template('rate_limit_error.html', 
-                               message='Too many login attempts. Please try again later.',
-                               retry_after=retry_after), 429
-    except Exception as template_ex:
-        print(f"Error rendering template: {template_ex}")
-        
-        # If template rendering fails, return a simple HTML response
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Rate Limit Exceeded</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
-                h1 {{ color: #e53e3e; }}
-                p {{ margin: 20px 0; }}
-                .countdown {{ font-weight: bold; }}
-                .btn {{ display: inline-block; padding: 8px 16px; background-color: #3182ce; 
-                       color: white; text-decoration: none; border-radius: 4px; }}
-            </style>
-        </head>
-        <body>
-            <h1>Rate Limit Exceeded</h1>
-            <p>Too many login attempts. Please try again in <span class="countdown">{retry_after}</span> seconds.</p>
-            <p><a href="{url_for('auth.login')}" class="btn">Return to Login</a></p>
-            <script>
-                let seconds = {retry_after};
-                const countdownElement = document.querySelector('.countdown');
-                const countdown = setInterval(function() {{
-                    seconds--;
-                    countdownElement.textContent = seconds;
-                    if (seconds <= 0) {{
-                        clearInterval(countdown);
-                        window.location.href = "{url_for('auth.login')}";
-                    }}
-                }}, 1000);
-            </script>
-        </body>
-        </html>
-        """
-        return html, 429
+                              message='Too many login attempts. Please try again later.',
+                              retry_after=retry_after), 429
+    except Exception as ex:
+        # Catch any exceptions in the error handler to prevent the app from crashing
+        print(f"Error in auth blueprint rate limit handler: {ex}")
+        return "Rate limit exceeded. Please try again later.", 429
 
 def init_app(app):
     """Initialize the authentication module with the Flask app"""
+    global limiter
+    
     try:
         # Initialize the login manager
         login_manager.init_app(app)
@@ -137,6 +143,10 @@ def init_app(app):
         
         # Update the existing limiter with the app
         limiter.init_app(app)
+        
+        # Update storage options if needed
+        if os.environ.get("REDIS_URL"):
+            limiter._storage_uri = os.environ.get("REDIS_URL")
         
         print(f"Rate limiter initialized: {limiter}")
         
@@ -182,6 +192,7 @@ def login():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
+        # We'll rely on the global rate limit handler in app.py
         username = request.form.get('username')
         password = request.form.get('password')
         remember = True if request.form.get('remember') else False

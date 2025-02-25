@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file, flash, abort, send_from_directory
+from markupsafe import Markup
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime, timedelta
@@ -19,6 +20,14 @@ import json
 import re
 import requests
 from flask_login import current_user, login_required
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+import auth
+from flask_limiter.errors import RateLimitExceeded
+from flask_limiter.util import get_remote_address
+import logging
+from logging.handlers import RotatingFileHandler
+import uuid
+from flask_limiter import Limiter
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,6 +45,98 @@ app.config['UPLOAD_FOLDER'] = 'static/item_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
+
+# Register global error handler for rate limiting
+@app.errorhandler(RateLimitExceeded)
+def handle_rate_limit_exceeded(e):
+    retry_after = 60  # Default value
+    
+    try:
+        # Debug information
+        print(f"Global handler - Rate limit exceeded: {e}")
+        print(f"Global handler - Exception type: {type(e)}")
+        print(f"Global handler - Request path: {request.path}")
+        print(f"Global handler - Client IP: {get_remote_address()}")
+        
+        # Try to get the actual retry_after value from the exception
+        if hasattr(e, 'retry_after'):
+            print(f"Global handler - Found retry_after attribute: {e.retry_after}")
+            retry_after = int(e.retry_after)
+        elif hasattr(e, 'description'):
+            print(f"Global handler - Found description attribute: {e.description}")
+            # Try to extract from the description (e.g., "5 per minute")
+            description = str(e.description)
+            if 'minute' in description:
+                # Extract the number from the description
+                try:
+                    limit_value = int(''.join(filter(str.isdigit, description.split('per')[0])))
+                    retry_after = 60  # 1 minute in seconds
+                    print(f"Global handler - Extracted from minute description: {retry_after}")
+                except (ValueError, IndexError):
+                    pass
+            elif 'hour' in description:
+                retry_after = 300  # 5 minutes in seconds
+                print(f"Global handler - Using hour-based retry_after: {retry_after}")
+            elif 'day' in description:
+                retry_after = 600  # 10 minutes in seconds
+                print(f"Global handler - Using day-based retry_after: {retry_after}")
+    except Exception as ex:
+        print(f"Error processing rate limit exception: {ex}")
+        # Continue with default retry_after value
+    
+    try:
+        print(f"Global handler - Final retry_after value: {retry_after}")
+        
+        # Return an error page directly instead of redirecting to avoid loops
+        return render_template('rate_limit_error.html', 
+                               message='Too many login attempts. Please try again later.',
+                               retry_after=retry_after), 429
+    except Exception as template_ex:
+        print(f"Error rendering template: {template_ex}")
+        
+        # If template rendering fails, return a simple HTML response
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Rate Limit Exceeded</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
+                h1 {{ color: #e53e3e; }}
+                p {{ margin: 20px 0; }}
+                .countdown {{ font-weight: bold; }}
+                .btn {{ display: inline-block; padding: 8px 16px; background-color: #3182ce; 
+                       color: white; text-decoration: none; border-radius: 4px; }}
+            </style>
+        </head>
+        <body>
+            <h1>Rate Limit Exceeded</h1>
+            <p>Too many login attempts. Please try again in <span class="countdown">{retry_after}</span> seconds.</p>
+            <p><a href="/" class="btn">Return to Home</a></p>
+            <script>
+                let seconds = {retry_after};
+                const countdownElement = document.querySelector('.countdown');
+                const countdown = setInterval(function() {{
+                    seconds--;
+                    countdownElement.textContent = seconds;
+                    if (seconds <= 0) {{
+                        clearInterval(countdown);
+                        window.location.href = "/auth/login";
+                    }}
+                }}, 1000);
+            </script>
+        </body>
+        </html>
+        """
+        return html, 429
+
+# Make CSRF token available in all templates
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf(), csrf_meta=lambda: Markup('<meta name="csrf-token" content="' + generate_csrf() + '">'))
+
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -44,8 +145,15 @@ from models import db, User, Project, Item
 db.init_app(app)
 migrate = Migrate(app, db)
 
-# Import auth after models
-import auth
+# Import and initialize auth
+from auth import init_app
+init_app(app)
+
+# Get the limiter instance from auth
+from auth import limiter
+
+# Note: Manual rate limiting implementation has been removed.
+# We're now using Flask-Limiter's decorator method in auth.py which is more reliable.
 
 # Create a lock for thread-safe operations
 cleanup_lock = threading.Lock()
@@ -967,8 +1075,7 @@ def translate_to_words(items):
 with app.app_context():
     # Create all tables if they don't exist
     db.create_all()
-    # Initialize authentication
-    auth.init_app(app)
+    # No need to initialize auth again, it's already done above
 
 if __name__ == '__main__':
     # Initial price cache update

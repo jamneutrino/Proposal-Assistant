@@ -102,142 +102,157 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Add new item
-    document.getElementById('addItemForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        
-        const response = await fetch('/admin/items/add', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Failed to add item');
-        }
-    });
+    // Function to get CSRF token from meta tag
+    function getCSRFToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
 
-    // Edit item
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const row = this.closest('tr');
-            row.querySelector('.item-name').classList.add('hidden');
-            row.querySelector('.edit-input').classList.remove('hidden');
-            row.querySelector('.edit-image').classList.remove('hidden');
-            if (row.querySelector('.keep-image-label')) {
-                row.querySelector('.keep-image-label').classList.remove('hidden');
-            }
-            row.querySelector('.edit-btn').classList.add('hidden');
-            row.querySelector('.save-btn').classList.remove('hidden');
-            row.querySelector('.cancel-btn').classList.remove('hidden');
-            row.querySelector('.delete-btn').classList.add('hidden');
-        });
-    });
-
-    // Cancel edit
-    document.querySelectorAll('.cancel-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const row = this.closest('tr');
-            row.querySelector('.item-name').classList.remove('hidden');
-            row.querySelector('.edit-input').classList.add('hidden');
-            row.querySelector('.edit-image').classList.add('hidden');
-            if (row.querySelector('.keep-image-label')) {
-                row.querySelector('.keep-image-label').classList.add('hidden');
-            }
-            row.querySelector('.edit-btn').classList.remove('hidden');
-            row.querySelector('.save-btn').classList.add('hidden');
-            row.querySelector('.cancel-btn').classList.add('hidden');
-            row.querySelector('.delete-btn').classList.remove('hidden');
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add new item
+        document.getElementById('addItemForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
             
-            // Reset input values
-            row.querySelector('.edit-input').value = row.querySelector('.item-name').textContent;
-            row.querySelector('.edit-image').value = '';
-            if (row.querySelector('.keep-image')) {
-                row.querySelector('.keep-image').checked = true;
-            }
-        });
-    });
-
-    // Save edit
-    document.querySelectorAll('.save-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const row = this.closest('tr');
-            const oldName = row.dataset.item;
-            const newName = row.querySelector('.edit-input').value.trim();
-            const imageFile = row.querySelector('.edit-image').files[0];
-            const keepImage = row.querySelector('.keep-image')?.checked ?? false;
-            
-            // Allow save if name changes OR if there's a new image OR if we're removing the image
-            if (newName && (newName !== oldName || imageFile || !keepImage)) {
-                const formData = new FormData();
-                formData.append('oldName', oldName);
-                formData.append('newName', newName);
-                if (imageFile) {
-                    formData.append('image', imageFile);
-                }
-                formData.append('keepImage', keepImage);
-
-                const response = await fetch('/admin/items/edit', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    alert('Failed to update item');
-                }
-            }
-        });
-    });
-
-    // Delete item
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            if (confirm('Are you sure you want to delete this item?')) {
-                const row = this.closest('tr');
-                const name = row.dataset.item;
-                
-                const response = await fetch('/admin/items/delete', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name })
-                });
-                
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    alert('Failed to delete item');
-                }
-            }
-        });
-    });
-    
-    // Cleanup temporary files
-    document.getElementById('cleanupTempFilesBtn').addEventListener('click', async function() {
-        const resultElement = document.getElementById('cleanupResult');
-        resultElement.textContent = 'Cleaning up...';
-        
-        try {
-            const response = await fetch('/admin/cleanup_temp_files', {
-                method: 'POST'
+            const response = await fetch('/admin/items/add', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: formData
             });
             
             if (response.ok) {
-                const data = await response.json();
-                resultElement.textContent = `Successfully cleaned up ${data.files_cleaned} temporary file(s).`;
+                location.reload();
             } else {
-                resultElement.textContent = 'Failed to clean up temporary files.';
+                alert('Failed to add item');
             }
-        } catch (error) {
-            resultElement.textContent = `Error: ${error.message}`;
-        }
+        });
+
+        // Edit item
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                row.querySelector('.item-name').classList.add('hidden');
+                row.querySelector('.edit-input').classList.remove('hidden');
+                row.querySelector('.edit-image').classList.remove('hidden');
+                if (row.querySelector('.keep-image-label')) {
+                    row.querySelector('.keep-image-label').classList.remove('hidden');
+                }
+                row.querySelector('.edit-btn').classList.add('hidden');
+                row.querySelector('.save-btn').classList.remove('hidden');
+                row.querySelector('.cancel-btn').classList.remove('hidden');
+                row.querySelector('.delete-btn').classList.add('hidden');
+            });
+        });
+
+        // Cancel edit
+        document.querySelectorAll('.cancel-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                row.querySelector('.item-name').classList.remove('hidden');
+                row.querySelector('.edit-input').classList.add('hidden');
+                row.querySelector('.edit-image').classList.add('hidden');
+                if (row.querySelector('.keep-image-label')) {
+                    row.querySelector('.keep-image-label').classList.add('hidden');
+                }
+                row.querySelector('.edit-btn').classList.remove('hidden');
+                row.querySelector('.save-btn').classList.add('hidden');
+                row.querySelector('.cancel-btn').classList.add('hidden');
+                row.querySelector('.delete-btn').classList.remove('hidden');
+                
+                // Reset input values
+                row.querySelector('.edit-input').value = row.querySelector('.item-name').textContent;
+                row.querySelector('.edit-image').value = '';
+                if (row.querySelector('.keep-image')) {
+                    row.querySelector('.keep-image').checked = true;
+                }
+            });
+        });
+
+        // Save edit
+        document.querySelectorAll('.save-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const row = this.closest('tr');
+                const oldName = row.dataset.item;
+                const newName = row.querySelector('.edit-input').value.trim();
+                const imageFile = row.querySelector('.edit-image').files[0];
+                const keepImage = row.querySelector('.keep-image')?.checked ?? false;
+                
+                // Allow save if name changes OR if there's a new image OR if we're removing the image
+                if (newName && (newName !== oldName || imageFile || !keepImage)) {
+                    const formData = new FormData();
+                    formData.append('oldName', oldName);
+                    formData.append('newName', newName);
+                    if (imageFile) {
+                        formData.append('image', imageFile);
+                    }
+                    formData.append('keepImage', keepImage);
+
+                    const response = await fetch('/admin/items/edit', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('Failed to update item');
+                    }
+                }
+            });
+        });
+
+        // Delete item
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                if (confirm('Are you sure you want to delete this item?')) {
+                    const row = this.closest('tr');
+                    const name = row.dataset.item;
+                    
+                    const response = await fetch('/admin/items/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: JSON.stringify({ name })
+                    });
+                    
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('Failed to delete item');
+                    }
+                }
+            });
+        });
+        
+        // Cleanup temporary files
+        document.getElementById('cleanupTempFilesBtn').addEventListener('click', async function() {
+            const resultElement = document.getElementById('cleanupResult');
+            resultElement.textContent = 'Cleaning up...';
+            
+            try {
+                const response = await fetch('/admin/cleanup_temp_files', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken()
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultElement.textContent = `Successfully cleaned up ${data.files_cleaned} temporary file(s).`;
+                } else {
+                    resultElement.textContent = 'Failed to clean up temporary files.';
+                }
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        });
     });
-});
 </script>
 {% endblock %} 

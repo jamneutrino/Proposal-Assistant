@@ -376,6 +376,7 @@
         </div>
         
         <form action="{{ url_for('update_project', project_id=project.id) }}" method="POST" class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
             <!-- Project Name (Required) -->
             <div class="form-group">
                 <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1">
@@ -466,6 +467,11 @@
 
 {% block scripts %}
 <script>
+    // Function to get CSRF token from meta tag
+    function getCSRFToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Display flash messages if any
         {% if flash_messages %}
@@ -564,7 +570,8 @@
             const response = await fetch('/add_item/{{ project.id }}', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
                 },
                 body: JSON.stringify({ item, quantity, price })
             });
@@ -582,7 +589,8 @@
                 const response = await fetch('/clear_items/{{ project.id }}', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
                     }
                 });
 
@@ -597,7 +605,10 @@
         generateWordBtn.addEventListener('click', async () => {
             try {
                 const response = await fetch(`/generate_word/{{ project.id }}`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken()
+                    }
                 });
                 
                 if (response.ok) {
@@ -801,7 +812,8 @@
                         const response = await fetch('/add_item/{{ project.id }}', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCSRFToken()
                             },
                             body: JSON.stringify({ item: itemValue, quantity, price })
                         });

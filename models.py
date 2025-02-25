@@ -14,6 +14,11 @@ class User(db.Model, UserMixin):
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Fields for tracking login attempts
+    failed_login_attempts = db.Column(db.Integer, default=0)
+    last_failed_login = db.Column(db.DateTime, nullable=True)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
         
