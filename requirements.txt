@@ -15,5 +15,4 @@ Flask-Migrate==4.0.5
 Flask-WTF==1.2.1
 Flask-Limiter==3.5.0
 python-magic==0.4.27
-validators==0.22.0
-gunicorn 
+validators==0.22.0 
