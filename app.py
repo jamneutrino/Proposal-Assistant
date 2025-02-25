@@ -45,8 +45,60 @@ app.config['UPLOAD_FOLDER'] = 'static/item_images'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+# CSP configuration
+app.config['CSP_REPORT_ONLY'] = os.getenv('CSP_REPORT_ONLY', 'False').lower() == 'true'
+
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+# Set up Content Security Policy
+@app.after_request
+def set_security_headers(response):
+    """
+    Add security headers to all responses to protect against XSS and other attacks.
+    """
+    # Content Security Policy
+    csp = {
+        'default-src': ["'self'"],
+        'script-src': [
+            "'self'", 
+            "https://cdn.tailwindcss.com", 
+            "https://cdn.jsdelivr.net", 
+            "https://maps.googleapis.com",
+            "'unsafe-inline'"
+        ],
+        'style-src': ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+        'font-src': ["'self'", "https://fonts.gstatic.com"],
+        'img-src': ["'self'", "data:", "https://*.googleapis.com", "https://*.gstatic.com"],
+        'connect-src': [
+            "'self'", 
+            "https://maps.googleapis.com",
+            "https://www.googleapis.com"
+        ],
+        'frame-src': ["'none'"],
+        'object-src': ["'none'"],
+        'base-uri': ["'self'"],
+        'form-action': ["'self'"],
+        'report-to': ["'csp-endpoint'"],
+        'report-uri': ["/csp-report"]
+    }
+    
+    # Convert the CSP dictionary to a string
+    csp_string = '; '.join([f"{key} {' '.join(value)}" for key, value in csp.items()])
+    
+    # Set the CSP header
+    if app.config.get('CSP_REPORT_ONLY', False):
+        response.headers['Content-Security-Policy-Report-Only'] = csp_string
+    else:
+        response.headers['Content-Security-Policy'] = csp_string
+    
+    # Add other security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'  # Prevent MIME type sniffing
+    response.headers['X-Frame-Options'] = 'DENY'  # Prevent clickjacking
+    response.headers['X-XSS-Protection'] = '1; mode=block'  # Enable XSS filtering
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'  # Control referrer information
+    
+    return response
 
 # Register global error handler for rate limiting
 @app.errorhandler(RateLimitExceeded)
@@ -1070,6 +1122,48 @@ def translate_to_words(items):
         return "\n\n".join(parts)
     else:
         return parts[0]
+
+# CSP violation reporting endpoint
+@app.route('/csp-report', methods=['POST'])
+def csp_report():
+    """
+    Endpoint for CSP violation reports.
+    """
+    if request.content_type == 'application/csp-report':
+        report = request.get_json()
+        app.logger.warning(f"CSP Violation: {json.dumps(report)}")
+    return '', 204  # No content response
+
+@app.route('/csp-violations')
+@login_required
+def csp_violations():
+    """
+    Display CSP violations for administrators.
+    """
+    if not current_user.is_admin:
+        flash('You do not have permission to access this page.', 'error')
+        return redirect(url_for('index'))
+    
+    # In a real application, you would retrieve violations from a database
+    # For this example, we'll just show a sample violation
+    sample_violation = {
+        "csp-report": {
+            "document-uri": "http://example.com/page.html",
+            "referrer": "",
+            "violated-directive": "script-src-elem",
+            "effective-directive": "script-src-elem",
+            "original-policy": "default-src 'self'; script-src 'self'",
+            "disposition": "enforce",
+            "blocked-uri": "http://example.com/js/script.js",
+            "line-number": 42,
+            "column-number": 8,
+            "source-file": "http://example.com/page.html",
+            "status-code": 0,
+            "script-sample": ""
+        }
+    }
+    
+    return render_template('csp_violation.html', violation=sample_violation)
 
 # Initialize authentication after database setup
 with app.app_context():

@@ -11,6 +11,35 @@
     <p class="mt-2 text-gray-600">Manage items and perform maintenance tasks</p>
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Items Management Card -->
+    <div class="bg-white rounded-lg shadow-soft p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Items Management</h2>
+        <p class="text-gray-600 mb-4">Add, edit, or remove items from the system.</p>
+        <button id="openItemsModal" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            Manage Items
+        </button>
+    </div>
+    
+    <!-- Cleanup Card -->
+    <div class="bg-white rounded-lg shadow-soft p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Temporary Files</h2>
+        <p class="text-gray-600 mb-4">Clean up temporary files to free up disk space.</p>
+        <button id="cleanupTempFiles" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            Cleanup Files
+        </button>
+    </div>
+    
+    <!-- Security Card -->
+    <div class="bg-white rounded-lg shadow-soft p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Security</h2>
+        <p class="text-gray-600 mb-4">Monitor security-related events and violations.</p>
+        <a href="{{ url_for('csp_violations') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            CSP Violations
+        </a>
+    </div>
+</div>
+
 <div class="bg-white rounded-xl shadow-soft border border-gray-200 mb-6">
     <div class="border-b border-gray-200 px-4 py-2 bg-gray-50">
         <h2 class="text-lg font-semibold text-gray-900">Manage Items</h2>
